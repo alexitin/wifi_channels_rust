@@ -1,2 +1,2 @@
-# wifinsa
-Wifi noise analyzer and helper for choice chanel (mac os).
+# Wifi noise analyzer
+Helper for choice chanel.
