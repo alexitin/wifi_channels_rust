@@ -1,3 +1,8 @@
+use pcap::Device;
+
 fn main() {
-    println!("Hello, world!!!");
+    let devices = Device::list().unwrap();
+    for dev in devices {
+        println!("{:?}", dev);
+    }
 }
