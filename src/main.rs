@@ -24,4 +24,15 @@ fn main() {
     for device in &devices {
         println!("{:?}", device);
     }
+
+//If number devices connected to ethernet more than 1, user must be choice from them.
+if devices.len() >1 {
+    let i = 1;
+    for device in &devices {
+        println!("{}. Device: {}", i, device.name )
+        
+    }
 }
+
+}
+
