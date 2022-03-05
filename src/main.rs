@@ -1,6 +1,6 @@
 use pcap::Device;
-use wifinsa::Captured;
 use std::process;
+use wifinsa::Captured;
 
 fn main() {
 // Get list all net devices.
@@ -9,17 +9,24 @@ fn main() {
         Err(err) => panic!("Problem get list devices: {}", err),
     };
 
-    // Get wlan device and check them for supporting monitor, promiscuous or immediate mode,
-// and enable if it possible.
-    let capture_device = Captured::get_device(devices);
-    println!("Device: {:?}, Mode: {}, Linktype {:?}",
+// Get device supporting monitor mode.
+    let mut capture_device = Captured::get_monitor_device(devices.clone());
+
+//If not found wifi devices capable of operating in monitor mode,
+//get device supporting promiscuous mode.
+    if capture_device.device.is_none() {
+    capture_device = Captured::get_promiscuous_device(devices);
+    }
+    println!("Device: {:?},\nMode: {},\nLinktype {:?}",
         capture_device.device,
         capture_device.mode, 
         capture_device.linktype
     );
+
+//If not found devices suppoted monitor or promiscuous mode.
     if capture_device.device.is_none() {
         println!("Not found wifi devices capable of operating in monitor or promiscuous mode.
-            Scan of channels not posible.");
+                Scan of channels not posible.");
         process::exit(1);
     }
 }

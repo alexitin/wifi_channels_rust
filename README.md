@@ -1,2 +1,2 @@
 # Wifi noise analyzer
-Helper for choice chanel.
+Helper for choice wifi chanel.
