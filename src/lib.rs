@@ -55,6 +55,11 @@ impl AllDevices {
     }
 }
 
+impl WifiDevice {
+    pub fn get_frame(device: Capture<Active>) {
+        device = set_linktype(device);
+    }
+}
 
 fn set_monitor_mode (dev: &Device) -> Result<Capture<Active>, pcap::Error> {
     Capture::from_device(dev.clone())
@@ -118,18 +123,18 @@ fn choice_device(devices: Vec<Device>) -> Device {
     devices[buf - 1].clone()
 }
 
-fn check_linktype(mut device_active: Capture<Active>) -> Result<String, pcap::Error> { 
-    if device_active.set_datalink(Linktype::PPI).is_ok() {
+fn set_linktype(mut device: Capture<Active>) -> Result<String, pcap::Error> { 
+    if device.set_datalink(Linktype::PPI).is_ok() {
         Linktype::PPI.get_name()
-    } else if device_active.set_datalink(Linktype::IEEE802_11_AVS).is_ok() {
+    } else if device.set_datalink(Linktype::IEEE802_11_AVS).is_ok() {
         Linktype::IEEE802_11_AVS.get_name()
-    } else if device_active.set_datalink(Linktype::IEEE802_11_RADIOTAP).is_ok() {
+    } else if device.set_datalink(Linktype::IEEE802_11_RADIOTAP).is_ok() {
         Linktype::IEEE802_11_RADIOTAP.get_name()
-    } else if device_active.set_datalink(Linktype::IEEE802_11_PRISM).is_ok() {
+    } else if device.set_datalink(Linktype::IEEE802_11_PRISM).is_ok() {
         Linktype::IEEE802_11_PRISM.get_name()
-    } else if device_active.set_datalink(Linktype::IEEE802_11).is_ok() {
+    } else if device.set_datalink(Linktype::IEEE802_11).is_ok() {
         Linktype::IEEE802_11.get_name()
-    } else if device_active.set_datalink(Linktype::ETHERNET).is_ok() {
+    } else if device.set_datalink(Linktype::ETHERNET).is_ok() {
         Linktype::ETHERNET.get_name()
     } else {
         println!("Not posible capture wifi packets");
