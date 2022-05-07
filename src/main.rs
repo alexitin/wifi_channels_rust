@@ -14,7 +14,7 @@ fn main() {
 
     match wifi_device.device {
         Some(device) => {
-            println!("Mode: {},", wifi_device.mode);
+            println!("Device: {}, Mode: {},", wifi_device.name, wifi_device.mode);
             WifiDevice::get_frame(device);
         },
         None => {
