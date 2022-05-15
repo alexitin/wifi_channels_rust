@@ -11,13 +11,15 @@ pub fn frame(mut device: Capture<Active>) {
 
 // Radiotap decoding
 
-        let len_radiotap = match packet.data[2..4].try_into() {
-            Ok(len) => usize::from_le_bytes(len),
-            Err(_) => {
-                println!("Broken header radiotap!1");
-                continue;
-            },
-        };
+        let len_radiotap = usize::from_le_bytes(packet.data[2..4].try_into().unwrap());
+
+//        let len_radiotap = match packet.data[2..4].try_into() {
+//            Ok(len) => usize::from_le_bytes(len),
+//            Err(_) => {
+//                println!("Broken header radiotap!1");
+//                continue;
+//            },
+//        };
 
         let it_present = match packet.data[4..8].try_into() {
             Ok(itp) => u32::from_le_bytes(itp),
