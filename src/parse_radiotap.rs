@@ -1,51 +1,77 @@
 use pcap::{Capture, Active};
+use std::collections::BTreeMap;
 
 pub fn frame(mut device: Capture<Active>) {
     let linktype = device.get_datalink().get_name().expect("No such linktype");
     device.filter("type mgt subtype beacon", false).expect("need oter linktype for BPF");
-    
+
+    let mut ssid_signal: BTreeMap<String, i8> = BTreeMap::new();
+
     while let Ok(packet) = device.next() {
 
 // Radiotap decoding
 
-        let len_radiotap = u16::from_le_bytes(packet.data[2..4].try_into().unwrap());
-        let len_radiotap = usize::from(len_radiotap);
-        let it_present = u32::from_le_bytes(packet.data[4..8].try_into().expect("slice with incorrect length"));
+        let len_radiotap = match packet.data[2..4].try_into() {
+            Ok(len) => usize::from_le_bytes(len),
+            Err(_) => {
+                println!("Broken header radiotap!1");
+                continue;
+            },
+        };
+
+        let it_present = match packet.data[4..8].try_into() {
+            Ok(itp) => u32::from_le_bytes(itp),
+            Err(_) => {
+                println!("Broken header radiotap!2");
+                continue;
+            },
+        };
 
         let mut pos_item = 7;
 
+// Checking ext fields
         if (it_present & (1 << 31)) != 0 {
             pos_item += 32
         }
 
+// Checking TSTF
         if (it_present & (1 << 0)) != 0 {
             pos_item += 8
         }
 
+//Checking flags
         if (it_present & (1 << 1)) != 0 {
             pos_item += 1
         }
 
+// Checking rate
         if (it_present & (1 << 2)) != 0 {
             pos_item += 1
         }
 
+// Checking channel
         let channel = if (it_present & (1 << 3)) != 0 {
-            u16::from_le_bytes(packet.data[(pos_item + 1)..(pos_item + 3)]
-                .try_into()
-                .unwrap())
+            match packet.data[(pos_item + 1)..(pos_item + 3)].try_into() {
+                Ok(ch) => {
+                    pos_item += 4;
+                    u16::from_le_bytes(ch)
+                },
+                Err(_) => {
+                    println!("Broken header radiotap!3");
+                    continue;
+                },
+            }
         } else {
-            0
+            println!("Channel not present!");
+            continue;
         };
 
-        if (it_present & (1 << 3)) != 0 {
-            pos_item += 4
-        }
-
+// Checking FHSS
         if (it_present & (1 << 4)) != 0 {
             pos_item += 2
         }
 
+// Checking antenna signal dBm
         let signal = if (it_present & (1 << 5)) != 0 {
             i8::from_le_bytes(packet.data[(pos_item + 1) .. (pos_item + 2)]
                 .try_into()
