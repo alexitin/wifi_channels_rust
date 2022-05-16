@@ -1,6 +1,5 @@
 use pcap::{Capture, Device, Linktype, Active};
-use std::io;
-use std::process;
+use std::{io, process};
 
 pub fn set_monitor_mode (dev: &str) -> Result<Capture<Active>, pcap::Error> {
     Capture::from_device(dev)

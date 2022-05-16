@@ -1,178 +1,170 @@
 use pcap::{Capture, Active};
+use std::array::TryFromSliceError;
 use std::collections::BTreeMap;
+use std::time::{Duration, Instant};
 
-pub fn frame(mut device: Capture<Active>) {
+use crate::NetSignals;
+
+struct RadiotapData {
+    length: usize,
+    channel: String,
+    signal: Option<i8>,
+}
+
+pub fn frames_data(mut device: Capture<Active>) -> NetSignals {
     let linktype = device.get_datalink().get_name().expect("No such linktype");
     device.filter("type mgt subtype beacon", false).expect("need oter linktype for BPF");
 
-    let mut ssid_signal: BTreeMap<String, i8> = BTreeMap::new();
+    let mut ssid_signal: BTreeMap<String, i32> = BTreeMap::new();
+    let now = Instant::now();
+    let timeout = Duration::from_secs(3);
 
-    while let Ok(packet) = device.next() {
-
-// Radiotap decoding
-
-        let len_radiotap = usize::from_le_bytes(packet.data[2..4].try_into().unwrap());
-
-//        let len_radiotap = match packet.data[2..4].try_into() {
-//            Ok(len) => usize::from_le_bytes(len),
-//            Err(_) => {
-//                println!("Broken header radiotap!1");
-//                continue;
-//            },
-//        };
-
-        let it_present = match packet.data[4..8].try_into() {
-            Ok(itp) => u32::from_le_bytes(itp),
-            Err(_) => {
-                println!("Broken header radiotap!2");
-                continue;
-            },
-        };
-
-        let mut pos_item = 7;
-
-// Checking ext fields
-        if (it_present & (1 << 31)) != 0 {
-            pos_item += 32
-        }
-
-// Checking TSTF
-        if (it_present & (1 << 0)) != 0 {
-            pos_item += 8
-        }
-
-//Checking flags
-        if (it_present & (1 << 1)) != 0 {
-            pos_item += 1
-        }
-
-// Checking rate
-        if (it_present & (1 << 2)) != 0 {
-            pos_item += 1
-        }
-
-// Checking channel
-        let channel = if (it_present & (1 << 3)) != 0 {
-            match packet.data[(pos_item + 1)..(pos_item + 3)].try_into() {
-                Ok(ch) => {
-                    pos_item += 4;
-                    u16::from_le_bytes(ch)
-                },
+    loop {
+        if let Ok(packet) = device.next() {
+            let radiotap_data = match get_radiotap_data(packet.data) {
+                Ok(r_data) => r_data,
                 Err(_) => {
-                    println!("Broken header radiotap!3");
+                    println!("Broken radiotap header!");
                     continue;
                 },
+            };
+
+            let signal = match radiotap_data.signal {
+                Some(sig) => i32::from(sig),
+                None => {
+                    println!("Signal not present!");
+                    continue;
+                },
+            };
+
+            let len_frame = match usize::try_from(packet.header.len) {
+                Ok(len) => len,
+                Err(_) => {
+                    println!("Broken length frame!");
+                    continue;
+                },
+            };
+
+            let name_net = match get_name_net(packet.data, len_frame, radiotap_data.length) {
+                Ok(name) => name,
+                Err(_) => {
+                    println!("Broken frame!");
+                    continue;
+                },
+            };
+
+            ssid_signal.entry(name_net)
+                .and_modify(|sig| {*sig = (*sig + signal) / 2})
+                .or_insert(signal);
+
+            if now.elapsed() >= timeout {
+                break NetSignals {
+                    channel: radiotap_data.channel,
+                    linktype,
+                    ssid_signal,
+                };
             }
-        } else {
-            println!("Channel not present!");
-            continue;
-        };
+        }
+    }
+}
+
+fn get_radiotap_data (data: &[u8]) -> Result<RadiotapData, TryFromSliceError> {
+    let len_radiotap = u16::from_le_bytes(data[2..4].try_into()?);    // usize::from_le_bytes() not working;
+    let len_radiotap = usize::from(len_radiotap);
+
+    let it_present =u32::from_le_bytes(data[4..8].try_into()?);
+
+    let mut pos_item = 7;
+
+// Checking ext fields
+    if (it_present & (1 << 31)) != 0 {
+        pos_item += 32
+    }
+
+// Checking TSTF
+    if (it_present & (1 << 0)) != 0 {
+        pos_item += 8
+    }
+
+//Checking flags
+    if (it_present & (1 << 1)) != 0 {
+        pos_item += 1
+    }
+
+// Checking rate
+    if (it_present & (1 << 2)) != 0 {
+        pos_item += 1
+    }
+
+// Checking channel
+    let channel_freq;
+    if (it_present & (1 << 3)) != 0 {
+        channel_freq = Some(u16::from_le_bytes(data[(pos_item + 1)..(pos_item + 3)].try_into()?));
+        pos_item += 4;
+    } else {
+        channel_freq = None;
+    };
+    let channel_num = match channel_freq {
+        Some(2412) => "1".to_string(),
+        Some(2417) => "2".to_string(),
+        Some(2422) => "3".to_string(),
+        Some(2427) => "4".to_string(),
+        Some(2432) => "5".to_string(),
+        Some(2437) => "6".to_string(),
+        Some(2442) => "7".to_string(),
+        Some(2447) => "8".to_string(),
+        Some(2452) => "9".to_string(),
+        Some(2457) => "10".to_string(),
+        Some(2462) => "11".to_string(),
+        Some(2467) => "12".to_string(),
+        Some(2472) => "13".to_string(),
+        Some(2484) => "14".to_string(),
+        Some(freq) => freq.to_string(),
+        None => "Not present".to_owned(),
+    };
 
 // Checking FHSS
-        if (it_present & (1 << 4)) != 0 {
-            pos_item += 2
-        }
+    if (it_present & (1 << 4)) != 0 {
+        pos_item += 2
+    }
 
 // Checking antenna signal dBm
-        let signal = if (it_present & (1 << 5)) != 0 {
-            i8::from_le_bytes(packet.data[(pos_item + 1) .. (pos_item + 2)]
-                .try_into()
-                .unwrap())
+    let signal = if (it_present & (1 << 5)) != 0 {
+        Some(i8::from_le_bytes(data[(pos_item + 1)..(pos_item + 2)].try_into()?))
+    } else {
+        None
+    };
+
+    Ok(RadiotapData {
+        length: len_radiotap,
+        channel: channel_num,
+        signal,
+    })
+}
+
+fn get_name_net(data: &[u8], len_frame: usize, len_radiotap: usize) -> Result<String, TryFromSliceError> {
+    let frame_control = u16::from_le_bytes(data[len_radiotap..(len_radiotap + 2)].try_into()?);
+
+// Checking 802.11ah standart
+    if (frame_control & (1 << 0)) != 0 {
+        Ok("HaLow".to_string())
+
+    } else {
+// Cheking length frame
+        if len_frame < (len_radiotap + 36 + 2) {
+            println!("len: {}", len_frame);
+            Ok("Unknown".to_string())
+
         } else {
-            0
-        };
-
-        if (it_present & (1 << 5)) != 0 {
-            pos_item += 1
-        }
-
-        let noise = if (it_present & (1 << 6)) != 0 {
-            i8::from_le_bytes(packet.data[(pos_item + 1) .. (pos_item + 2)]
-                .try_into()
-                .unwrap())
-        } else {
-            0
-        };
-
-// MAC 802.11 frame decoding
-
-        let frame_control = u16::from_le_bytes(packet.data[len_radiotap..(len_radiotap + 2)]
-            .try_into()
-            .expect("slice with incorrect length FC"));
-        
-        let mut pos_id = if packet.header.len >= (len_radiotap + 36).try_into().unwrap() {
-            len_radiotap + 36
-        } else {
-            println!("HHHHHHAAAAAAYYYYYY!!!!!!
-            Channel: {}.\nSignal: {}.\nNoise: {}.", &channel, &signal, &noise);
-            len_radiotap
-        };
-        let len_id = usize::from(packet.data[pos_id + 1]);
-
 // Checking SSID:
-        let ssid = if (frame_control & (1 << 0)) != 0 {
-            "HaLow".to_owned()
-        } else if packet.data[pos_id] == 0 && len_id <= 32 {
-            String::from_utf8_lossy(&packet.data[(pos_id + 2)..(pos_id + 2 + len_id)]).into_owned()
-        } else {
-            "hidden".to_owned()
-        };
-
-        if packet.data[pos_id] == 0 && len_id <= 32 {
-            pos_id += 2 + len_id
+            let pos_id = len_radiotap + 36;
+            let len_id = usize::from(data[pos_id + 1]);
+            let ssid = if data[pos_id] == 0 && len_id <= 32 {
+                String::from_utf8_lossy(&data[(pos_id + 2)..(pos_id + 2 + len_id)]).into_owned()
+                } else {
+                format!("{:X?}", &data[(len_radiotap + 16)..(len_radiotap + 22)]).to_string()
+            };
+            Ok(ssid)
         }
-
-// Checking rate:
-        let len_id = usize::from(packet.data[pos_id + 1]);
-
-        if packet.data[pos_id] == 1 && len_id <= 8 {
-            pos_id += 2 + len_id
-        } else {
-            pos_id += 10
-        }
-
-// Checking FH:
-        let len_id = usize::from(packet.data[pos_id + 1]);
-
-        if packet.data[pos_id] == 2 && len_id <= 5 {
-            pos_id += 2 + len_id
-        } else {
-            pos_id += 7
-        }
-
-// Checking DS:
-        let len_id = usize::from(packet.data[pos_id + 1]);
-
-        let channel_cur = if (packet.data[pos_id] == 3) && (packet.data[pos_id + 1] == 1) {
-            u8::from(packet.data[pos_id + 2])
-        } else {
-            match channel {
-                2412 => 1,
-                2417 => 2,
-                2422 => 3,
-                2427 => 4,
-                2432 => 5,
-                2437 => 6,
-                2442 => 7,
-                2447 => 8,
-                2452 => 9,
-                2457 => 10,
-                2462 => 11,
-                2467 => 12,
-                2472 => 13,
-                2484 => 14,
-                _ => 15,
-            }
-        };
-
-//            let channel_freq = u32::from_be_bytes(packet.data[]);
-//        if len_ssid == 0 {
-//        println!("nFC: {:#018b}.\nPosition: {}.\nLength_ssid: {}.\nPacket {:?}",
-//                &frame_control, &pos_item, &len_ssid, &packet.data[len_radiotap..(len_radiotap + 64)]);
-        println!("Linktype: {:?}.\nLength: {}.\nChannel: {}.\nSignal: {}.\nNoise: {}.\nSSID: {}.
-Curient channel: {}.\nPacket: {:?}",
-            &linktype, &len_radiotap, &channel, &signal, &noise,
-            &ssid, &channel_cur, &packet.data[(len_radiotap + 36)..128]);
-//            }
     }
 }

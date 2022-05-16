@@ -15,7 +15,11 @@ fn main() {
     match wifi_device.device {
         Some(device) => {
             println!("Device: {}, Mode: {},", wifi_device.name, wifi_device.mode);
-            WifiDevice::get_frame(device);
+            let net_signal = WifiDevice::get_frames(device);
+            println!("Linktype: {}.\nChannel: {}", net_signal.linktype, net_signal.channel);
+            for (name, signal) in net_signal.ssid_signal {
+                println!("{} - {}", name, signal)
+            }
         },
         None => {
             println!("Not found wifi devices. Scan of channels not posible.

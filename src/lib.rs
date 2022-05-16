@@ -1,4 +1,5 @@
 use pcap::{Capture, Device, Linktype, Active};
+use std::collections::BTreeMap;
 
 mod check_device;
 mod parse_radiotap;
@@ -10,6 +11,12 @@ pub struct WifiDevice {
     pub device: Option<Capture<Active>>,
     pub name: String,
     pub mode: String,
+}
+
+pub struct NetSignals {
+    pub channel: String,
+    pub linktype: String,
+    pub ssid_signal: BTreeMap<String, i32>,
 }
 
 impl AllDevices {
@@ -30,7 +37,7 @@ impl AllDevices {
             WifiDevice {
                 device: check_device::set_monitor_mode(&name).ok(),
                 name,
-                mode: "monitor".to_string()
+                mode: "monitor".to_string(),
             }
         } else {
 
@@ -44,7 +51,7 @@ impl AllDevices {
                 WifiDevice {
                     device,
                     name,
-                    mode:"promiscouos".to_string()
+                    mode:"promiscouos".to_string(),
                 }
             } else {
 // Check device for normal mode and set it
@@ -52,7 +59,7 @@ impl AllDevices {
                 WifiDevice {
                     device,
                     name,
-                    mode: "normal".to_string()
+                    mode: "normal".to_string(),
                 }
             }
         }
@@ -60,11 +67,18 @@ impl AllDevices {
 }
 
 impl WifiDevice {
-    pub fn get_frame(device: Capture<Active>) {
+    pub fn get_frames(device: Capture<Active>) -> NetSignals {
         let device = check_device::get_linktype(device);
         match device.get_datalink() {
-            Linktype(127) => parse_radiotap::frame(device),
-            _ => println!("Todo next, linktype: {:?}", device.get_datalink()),
-        };
+            Linktype(127) => parse_radiotap::frames_data(device),
+            _ => {
+                println!("Todo next, linktype: {:?}", device.get_datalink());
+                NetSignals {
+                    channel: "15".to_string(),
+                    linktype: "".to_string(),
+                    ssid_signal: BTreeMap::new(),
+                }
+            }
+        }
     }
 }
