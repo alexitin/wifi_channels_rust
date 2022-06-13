@@ -1,5 +1,5 @@
 use pcap::{Device, Linktype};
-use std::{collections::BTreeMap, ffi::CString, time::Duration, thread, rc::Rc};
+use std::{collections::BTreeMap, time::Duration, thread, rc::Rc, process};
 
 mod check_device;
 mod parse_radiotap;
@@ -76,22 +76,48 @@ impl AllDevices {
 
 impl WifiDevice {
     pub fn frames_all_channels(self) {
-        let mut status_select: isize = 0;
-//        let channel = 1;
+        let mut status_select: isize;
+
         let name = Rc::new(self.name);
-        let cc_string = Rc::clone(&name).as_str().to_owned();
-        let c_name = CString::new(cc_string).unwrap();
+
         let ptr_name = Rc::clone(&name).as_ptr();
         for i in 1..12  {
             let channel = i;
             unsafe {
                 status_select = mac_select_channel(ptr_name, channel);
             }
+
+            match status_select {
+                0 => {
+                    let time_select = Duration::new(3, 0);
+                    thread::sleep(time_select);
+                },
+                1 => {
+                    println!("Problem enable WiFi device");
+                    process::exit(1);
+                },
+                2 => {
+                    println!("Problem set channel WiFi device");
+                    process::exit(1);
+                },
+                3 => {
+                    println!("Problem no find in list selected channel for WiFi device");
+                    process::exit(1);
+                },
+                4 => {
+                    println!("Problem no get list supported WiFi device");
+                    process::exit(1);
+                },
+                _ => {
+                    println!("Problem no get interface of WiFi device");
+                    process::exit(1);
+                },
+            }
+
             println!("From swift - {}", status_select);
 
-            let time_select = Duration::new(3, 0);
-            thread::sleep(time_select);
-//            let name = Rc::clone(&c_name).to_str().unwrap();
+
+
             let net_signal = WifiDevice::get_frames(&name.to_string());
             println!("Linktype: {}.\nChannel: {}", net_signal.linktype, net_signal.channel);
             println!("{:?}", net_signal.ssid_signal)

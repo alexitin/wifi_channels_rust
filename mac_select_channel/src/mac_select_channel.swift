@@ -23,7 +23,7 @@ let name: String = String(utf8String: nameDev)!
 
       do {try interface!.setPower(true)
       } catch {
-        succesSelector = 0 //"No set power"
+        succesSelector = 1 //"No set power"
       }
 
     let channels = interface!.supportedWLANChannels()
@@ -38,13 +38,13 @@ let name: String = String(utf8String: nameDev)!
           interface!.disassociate()
 
           do { try interface!.setWLANChannel(channel)
-            succesSelector = 1 //"Ok"
+            succesSelector = 0 //"Ok"
           }
           catch { 
             succesSelector = 2 //"No set channel"
           }
-
           break
+
         } else {
           succesSelector = 3 //"No selected channel"
         }
