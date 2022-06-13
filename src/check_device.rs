@@ -21,15 +21,6 @@ pub fn set_promiscouos_mode (dev: &str) -> Result<Capture<Active>, pcap::Error> 
         .open()
 }
 
-pub fn set_normal_mode (dev: &str) -> Result<Capture<Active>, pcap::Error> {
-    Capture::from_device(dev)
-        .unwrap_or_else(|err| panic!("Problem capture device: {}", err))
-        .snaplen(256)
-        .buffer_size(256)
-        .timeout(10000)
-        .open()
-}
-
 pub fn choice_device(devices: Vec<Device>) -> Device {
     let mut i = 0;
     for dev in &devices {

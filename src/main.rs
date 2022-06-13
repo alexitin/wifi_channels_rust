@@ -1,5 +1,5 @@
 use std::process;
-use wifinsa::{AllDevices, WifiDevice};
+use wifinsa::{AllDevices, WifiDevice, DeviceMode};
 
 fn main() {
 
@@ -12,16 +12,12 @@ fn main() {
 // Get device supporting monitor, promiscouos or normal mode.
     let wifi_device = devices.get_wifi_device();
 
-    match wifi_device.device {
-        Some(device) => {
-            println!("Device: {}, Mode: {},", wifi_device.name, wifi_device.mode);
-            let net_signal = WifiDevice::get_frames(device);
-            println!("Linktype: {}.\nChannel: {}", net_signal.linktype, net_signal.channel);
-            for (name, signal) in net_signal.ssid_signal {
-                println!("{} - {}", name, signal)
-            }
+    match wifi_device.mode {
+        DeviceMode::Monitor => {
+            println!("Device: {}, Mode: monitor,", wifi_device.name);
+            wifi_device.frames_all_channels();
         },
-        None => {
+        _ => {
             println!("Not found wifi devices. Scan of channels not posible.
 NOTE 1. For promiscuous or normal mode require enable wifi device and connect to wlan.
 NOTE 2. Sometimes superuser rights are needed, try using sudo.");
