@@ -1,5 +1,67 @@
-use pcap::{Capture, Device, Linktype, Active};
 use std::{io, process};
+
+use pcap::{Device, Capture, Active};
+
+use crate::frame::WifiDevice;
+
+pub enum DeviceMode {
+    Monitor,
+    Promiscouos,
+    Normal,
+}
+
+pub struct AllDevices {
+    devices: Vec<Device>
+}
+
+impl AllDevices {
+
+    pub fn new () -> AllDevices {
+        let devices = Device::list().unwrap_or_else(|err| {
+            println!("Problem get list all net devices: {}", err);
+            process::exit(1)
+            });
+        AllDevices {
+            devices,
+        }
+    }
+
+    pub fn get_wifi_device(self) -> WifiDevice {
+
+// Check all devices for monitor mode compatibility and use the first match
+        if let Some(position) = self.devices.iter()
+            .position(|dev| set_monitor_mode(&dev.name).is_ok()) {
+
+            let name = self.devices[position].name.to_owned();
+
+            WifiDevice {
+                name,
+                mode: DeviceMode::Monitor,
+            }
+        } else {
+
+// Choice devices connected to the local network
+            let devices = choice_device(self.devices);
+            let name = devices.name.to_owned();
+
+// Check device for promiscouos mode
+            let device = set_promiscouos_mode(&devices.name).ok();
+
+            if device.is_some() {
+                WifiDevice {
+                    name,
+                    mode: DeviceMode::Promiscouos,
+                }
+            } else {
+// Device are normal mode
+                WifiDevice {
+                    name,
+                    mode: DeviceMode::Normal,
+                }
+            }
+        }
+    }
+}
 
 pub fn set_monitor_mode (dev: &str) -> Result<Capture<Active>, pcap::Error> {
     Capture::from_device(dev)
@@ -21,7 +83,7 @@ pub fn set_promiscouos_mode (dev: &str) -> Result<Capture<Active>, pcap::Error> 
         .open()
 }
 
-pub fn choice_device(devices: Vec<Device>) -> Device {
+fn choice_device(devices: Vec<Device>) -> Device {
     let mut i = 0;
     for dev in &devices {
         i += 1;
@@ -52,23 +114,4 @@ pub fn choice_device(devices: Vec<Device>) -> Device {
         };
     };
     devices[buf - 1].clone()
-}
-
-pub fn get_linktype(mut device: Capture<Active>) -> Capture<Active> {
-    if device.set_datalink(Linktype::IEEE802_11_RADIOTAP).is_ok() {
-        device
-    } else if device.set_datalink(Linktype::IEEE802_11_AVS).is_ok() {
-        device
-    } else if device.set_datalink(Linktype::IEEE802_11_PRISM).is_ok() {
-        device
-    } else if device.set_datalink(Linktype::PPI).is_ok() {
-        device
-    } else if device.set_datalink(Linktype::IEEE802_11).is_ok() {
-        device
-    } else if device.set_datalink(Linktype::ETHERNET).is_ok() {
-        device
-    } else {
-        println!("Not one of the DLTs not supported by this device. Not posible capture wifi packets");
-        process::exit(1);
-    }
 }

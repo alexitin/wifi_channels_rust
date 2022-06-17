@@ -1,22 +1,9 @@
-use pcap::{Device, Linktype};
-use std::{collections::BTreeMap, time::Duration, thread, rc::Rc, process};
+use std::{time::Duration, thread, process, collections::BTreeMap, ffi::CString};
 
-mod check_device;
-mod parse_radiotap;
+use pcap::{Linktype, Capture, Active};
 
-extern "C" {
-    fn mac_select_channel(ptr_name: *const u8, channel: isize) -> isize;
-}
+use crate::{device::DeviceMode, parse_radiotap};
 
-pub enum DeviceMode {
-    Monitor,
-    Promiscouos,
-    Normal,
-}
-
-pub struct AllDevices {
-    devices: Vec<Device>
-}
 pub struct WifiDevice {
     pub name: String,
     pub mode: DeviceMode,
@@ -28,59 +15,19 @@ pub struct NetSignals {
     pub ssid_signal: BTreeMap<String, i32>,
 }
 
-impl AllDevices {
-
-    pub fn new () -> Result<AllDevices, pcap::Error> {
-        let devices =  Device::list()?; {
-            Ok(AllDevices {devices})
-        }
-    }
-
-    pub fn get_wifi_device(self) -> WifiDevice {
-
-// Check all devices for monitor mode compatibility and use the first match
-        if let Some(position) = self.devices.iter()
-            .position(|dev| check_device::set_monitor_mode(&dev.name).is_ok()) {
-            
-            let name = self.devices[position].name.to_owned();
-            
-            WifiDevice {
-                name,
-                mode: DeviceMode::Monitor,
-            }
-        } else {
-
-// Choice devices connected to the local network
-            let devices = check_device::choice_device(self.devices);
-            let name = devices.name.to_owned();
-
-// Check device for promiscouos mode
-            let device = check_device::set_promiscouos_mode(&devices.name).ok();
-//            let device = None;
-            if device.is_some() {
-                WifiDevice {
-//                    device,
-                    name,
-                    mode: DeviceMode::Promiscouos,
-                }
-            } else {
-// Device are normal mode
-                WifiDevice {
-                    name,
-                    mode: DeviceMode::Normal,
-                }
-            }
-        }
-    }
+extern "C" {
+    fn mac_select_channel(ptr_name: *const i8, channel: isize) -> isize;
 }
+
 
 impl WifiDevice {
     pub fn frames_all_channels(self) {
         let mut status_select: isize;
 
-        let name = Rc::new(self.name);
+        let b_name = self.name.as_bytes().to_vec();
+        let c_name = CString::new(b_name).unwrap();
 
-        let ptr_name = Rc::clone(&name).as_ptr();
+        let ptr_name = c_name.as_ptr();
         for i in 1..12  {
             let channel = i;
             unsafe {
@@ -118,14 +65,14 @@ impl WifiDevice {
 
 
 
-            let net_signal = WifiDevice::get_frames(&name.to_string());
+            let net_signal = WifiDevice::get_frames(&self.name);
             println!("Linktype: {}.\nChannel: {}", net_signal.linktype, net_signal.channel);
             println!("{:?}", net_signal.ssid_signal)
         }
     }
     pub fn get_frames(name: &str) -> NetSignals {
-        let mut device = check_device::set_monitor_mode(name).unwrap();
-        device = check_device::get_linktype(device);
+        let mut device = crate::device::set_monitor_mode(name).unwrap();
+        device = get_linktype(device);
         match device.get_datalink() {
             Linktype(127) => parse_radiotap::frames_data(device),
             _ => {
@@ -137,5 +84,24 @@ impl WifiDevice {
                 }
             }
         }
+    }
+}
+
+pub fn get_linktype(mut device: Capture<Active>) -> Capture<Active> {
+    if device.set_datalink(Linktype::IEEE802_11_RADIOTAP).is_ok() {
+        device
+    } else if device.set_datalink(Linktype::IEEE802_11_AVS).is_ok() {
+        device
+    } else if device.set_datalink(Linktype::IEEE802_11_PRISM).is_ok() {
+        device
+    } else if device.set_datalink(Linktype::PPI).is_ok() {
+        device
+    } else if device.set_datalink(Linktype::IEEE802_11).is_ok() {
+        device
+    } else if device.set_datalink(Linktype::ETHERNET).is_ok() {
+        device
+    } else {
+        println!("Not one of the DLTs not supported by this device. Not posible capture wifi packets");
+        process::exit(1);
     }
 }

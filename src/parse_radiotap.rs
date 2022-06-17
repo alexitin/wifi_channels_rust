@@ -3,7 +3,8 @@ use std::array::TryFromSliceError;
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
-use crate::NetSignals;
+use crate::frame::NetSignals;
+
 
 struct RadiotapData {
     length: usize,

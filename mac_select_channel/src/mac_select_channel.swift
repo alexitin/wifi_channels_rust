@@ -2,16 +2,9 @@ import Foundation
 import CoreWLAN
 
 @_cdecl("mac_select_channel")
-//public func mac_select_channel() -> Int {
-//public func mac_select_channel(_ name: String, _ numberChannel: Int) -> Int {
 public func mac_select_channel(_ nameDev: UnsafePointer<CChar>, _ numberChannel: Int) -> Int {
 
-//let numberChannel = 1
 let name: String = String(utf8String: nameDev)!
-
-
-//  var band: String
-//  var width: String
 
   let widthChannel: CWChannelWidth = .width20MHz 
   let bandChannel: CWChannelBand = .band2GHz
