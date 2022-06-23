@@ -18,7 +18,7 @@ pub fn frames_data(mut device: Capture<Active>) -> NetSignals {
 
     let mut ssid_signal: BTreeMap<String, i32> = BTreeMap::new();
     let now = Instant::now();
-    let timeout = Duration::from_secs(1);
+    let timeout = Duration::from_secs(3);
 
     loop {
         if let Ok(packet) = device.next() {

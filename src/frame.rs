@@ -2,11 +2,12 @@ use std::{time::Duration, thread, process, collections::BTreeMap, ffi::CString};
 
 use pcap::{Linktype, Capture, Active};
 
-use crate::{device::DeviceMode, parse_radiotap};
+use crate::{device, parse_radiotap};
 
 pub struct WifiDevice {
     pub name: String,
-    pub mode: DeviceMode,
+    pub mode: device::DeviceMode,
+    pub linktype: Linktype
 }
 
 pub struct NetSignals {
@@ -15,14 +16,19 @@ pub struct NetSignals {
     pub ssid_signal: BTreeMap<String, i32>,
 }
 
+pub struct AirNoise {
+    radio_air: Vec<NetSignals>,
+}
+
 extern "C" {
     fn mac_select_channel(ptr_name: *const i8, channel: isize) -> isize;
 }
 
 
 impl WifiDevice {
-    pub fn frames_all_channels(self) {
+    pub fn scan_channels_monitor(self) -> AirNoise {
         let mut status_select: isize;
+        let mut radio_air: Vec<NetSignals> = vec![];
 
         let b_name = self.name.as_bytes().to_vec();
         let c_name = CString::new(b_name).unwrap();
@@ -38,6 +44,7 @@ impl WifiDevice {
                 0 => {
                     let time_select = Duration::new(3, 0);
                     thread::sleep(time_select);
+                    println!("Scanning chanel {}", &i);
                 },
                 1 => {
                     println!("Problem enable WiFi device");
@@ -48,7 +55,7 @@ impl WifiDevice {
                     process::exit(1);
                 },
                 3 => {
-                    println!("Problem no find in list selected channel for WiFi device");
+                    println!("Problem no find in list supported channels for WiFi device");
                     process::exit(1);
                 },
                 4 => {
@@ -61,47 +68,63 @@ impl WifiDevice {
                 },
             }
 
-            println!("From swift - {}", status_select);
+            let mut capture_device = device::set_monitor_mode(&self.name).unwrap();
+            capture_device.set_datalink(self.linktype).unwrap();
+            let net_signal = get_frames(capture_device, self.linktype);
 
+            radio_air.push(net_signal)
 
-
-            let net_signal = WifiDevice::get_frames(&self.name);
-            println!("Linktype: {}.\nChannel: {}", net_signal.linktype, net_signal.channel);
-            println!("{:?}", net_signal.ssid_signal)
+//            println!("Linktype: {}.\nChannel: {}", net_signal.linktype, net_signal.channel);
+//            println!("{:?}", net_signal.ssid_signal)
+        }
+        AirNoise {
+            radio_air,
         }
     }
-    pub fn get_frames(name: &str) -> NetSignals {
-        let mut device = crate::device::set_monitor_mode(name).unwrap();
-        device = get_linktype(device);
-        match device.get_datalink() {
-            Linktype(127) => parse_radiotap::frames_data(device),
-            _ => {
-                println!("Todo next, linktype: {:?}", device.get_datalink());
-                NetSignals {
-                    channel: "".to_string(),
-                    linktype: "".to_string(),
-                    ssid_signal: BTreeMap::new(),
-                }
+
+    pub fn scan_channels_promiscouos(self) -> AirNoise {
+        let mut radio_air: Vec<NetSignals> = vec![];
+        let mut capture_device = device::set_promiscouos_mode(&self.name).unwrap();
+        capture_device.set_datalink(self.linktype).unwrap();
+        let net_signal = get_frames(capture_device, self.linktype);
+        radio_air.push(net_signal);
+        AirNoise {
+            radio_air,
+        }
+    }
+    pub fn scan_channels_normal(self) -> AirNoise {
+        let mut radio_air: Vec<NetSignals> = vec![];
+        let mut capture_device = device::set_normal_mode(&self.name).unwrap();
+        capture_device.set_datalink(self.linktype).unwrap();
+        let net_signal = get_frames(capture_device, self.linktype);
+        radio_air.push(net_signal);
+        AirNoise {
+            radio_air,
+        }
+    }
+}
+
+fn get_frames(device: Capture<Active>, linktype: Linktype) -> NetSignals {
+    match linktype {
+        Linktype(127) => parse_radiotap::frames_data(device),
+        _ => {
+            println!("Todo next, linktype: {:?}", device.get_datalink());
+            NetSignals {
+                channel: "".to_string(),
+                linktype: "".to_string(),
+                ssid_signal: BTreeMap::new(),
             }
         }
     }
 }
 
-pub fn get_linktype(mut device: Capture<Active>) -> Capture<Active> {
-    if device.set_datalink(Linktype::IEEE802_11_RADIOTAP).is_ok() {
-        device
-    } else if device.set_datalink(Linktype::IEEE802_11_AVS).is_ok() {
-        device
-    } else if device.set_datalink(Linktype::IEEE802_11_PRISM).is_ok() {
-        device
-    } else if device.set_datalink(Linktype::PPI).is_ok() {
-        device
-    } else if device.set_datalink(Linktype::IEEE802_11).is_ok() {
-        device
-    } else if device.set_datalink(Linktype::ETHERNET).is_ok() {
-        device
-    } else {
-        println!("Not one of the DLTs not supported by this device. Not posible capture wifi packets");
-        process::exit(1);
+impl AirNoise {
+    pub fn show(self) {
+        for air in self.radio_air {
+            println!("Channel: {}, Linktype: {} ", air.channel, air.linktype);
+            for (ssid, signal) in air.ssid_signal {
+                println!("SSID: {} - Signal: {}", ssid, signal)
+            }
+        }
     }
 }
