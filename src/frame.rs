@@ -1,4 +1,4 @@
-use std::{time::Duration, thread, process, collections::BTreeMap, ffi::CString};
+use std::{time::Duration, thread, process, collections::BTreeMap, ffi::CString, io};
 
 use pcap::{Linktype, Capture, Active};
 
@@ -12,7 +12,6 @@ pub struct WifiDevice {
 
 pub struct NetSignals {
     pub channel: String,
-    pub linktype: String,
     pub ssid_signal: BTreeMap<String, i32>,
 }
 
@@ -26,7 +25,7 @@ extern "C" {
 
 
 impl WifiDevice {
-    pub fn scan_channels_monitor(self) -> AirNoise {
+    pub fn scan_channels_monitor(&self) -> AirNoise {
         let mut status_select: isize;
         let mut radio_air: Vec<NetSignals> = vec![];
 
@@ -73,16 +72,14 @@ impl WifiDevice {
             let net_signal = get_frames(capture_device, self.linktype);
 
             radio_air.push(net_signal)
-
-//            println!("Linktype: {}.\nChannel: {}", net_signal.linktype, net_signal.channel);
-//            println!("{:?}", net_signal.ssid_signal)
         }
+
         AirNoise {
             radio_air,
         }
     }
 
-    pub fn scan_channels_promiscouos(self) -> AirNoise {
+    pub fn scan_channels_promiscouos(&self) -> AirNoise {
         let mut radio_air: Vec<NetSignals> = vec![];
         let mut capture_device = device::set_promiscouos_mode(&self.name).unwrap();
         capture_device.set_datalink(self.linktype).unwrap();
@@ -92,7 +89,7 @@ impl WifiDevice {
             radio_air,
         }
     }
-    pub fn scan_channels_normal(self) -> AirNoise {
+    pub fn scan_channels_normal(&self) -> AirNoise {
         let mut radio_air: Vec<NetSignals> = vec![];
         let mut capture_device = device::set_normal_mode(&self.name).unwrap();
         capture_device.set_datalink(self.linktype).unwrap();
@@ -108,10 +105,9 @@ fn get_frames(device: Capture<Active>, linktype: Linktype) -> NetSignals {
     match linktype {
         Linktype(127) => parse_radiotap::frames_data(device),
         _ => {
-            println!("Todo next, linktype: {:?}", device.get_datalink());
+
             NetSignals {
                 channel: "".to_string(),
-                linktype: "".to_string(),
                 ssid_signal: BTreeMap::new(),
             }
         }
@@ -119,12 +115,65 @@ fn get_frames(device: Capture<Active>, linktype: Linktype) -> NetSignals {
 }
 
 impl AirNoise {
-    pub fn show(self) {
-        for air in self.radio_air {
-            println!("Channel: {}, Linktype: {} ", air.channel, air.linktype);
-            for (ssid, signal) in air.ssid_signal {
-                println!("SSID: {} - Signal: {}", ssid, signal)
+    pub fn show(self, wifi_device: &WifiDevice) {
+        let mut list_ssid: Vec<&String> = Vec::new();
+        for air in &self.radio_air {
+            let ssid_set: Vec<_> = air.ssid_signal.keys().clone().collect();
+            for ssid in ssid_set {
+                if !list_ssid.contains(&ssid) {list_ssid.push(ssid)}
             }
+        
+        }
+        let home_ssid = choice_home_ssid(list_ssid);
+
+        let mode = match wifi_device.mode {
+            device::DeviceMode::Monitor => "monitor".to_owned(),
+            device::DeviceMode::Promiscouos => "promiscous".to_owned(),
+            device::DeviceMode::Normal => "normal".to_owned(),
+            
+        };
+        let linktype = wifi_device.linktype.get_name().unwrap().to_owned();
+        println!("Device: {}, Mode: {}, Linktype: {}", wifi_device.name, mode, linktype);
+        for mut air in self.radio_air { 
+            air.ssid_signal.remove_entry(&home_ssid);
+            let number_ap = air.ssid_signal.len();
+            let mut signals: Vec<_> = air.ssid_signal.values().cloned().collect();
+            signals.sort();
+            let signal_max = signals.last().unwrap_or(&0);
+            println!("Chanel: {}, Namber acces point: {}, Max signal, dB: {};", air.channel, number_ap, signal_max);
         }
     }
+}
+
+fn choice_home_ssid(list_ssid: Vec<&String>) -> String {
+    let mut i = 0;
+    for ssid in &list_ssid {
+        i += 1;
+        println!("{}. {}", &i, ssid);
+    }
+    println!("Choose your home ssid:");
+
+    let buf = loop {
+        let mut buf = String::new();
+        io::stdin()
+            .read_line(&mut buf)
+            .unwrap_or_else(|err| {
+                println!("Failed read yuor choice: {}", err);
+                process::exit(1)
+            });
+        let buf = match buf.trim().parse::<usize>() {
+            Ok(num) => num,
+            Err(_) => {
+                println!("Incorrect choice");
+                continue;
+            },
+        };
+        if buf > list_ssid.len() {
+            println!("Incorrect choice: {}", &buf);
+            continue;
+        } else {
+            break buf
+        };
+    };
+    list_ssid[buf - 1].to_owned()
 }

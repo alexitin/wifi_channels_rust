@@ -15,18 +15,9 @@ fn main() {
     let wifi_device = devices.get_wifi_device();
 
     let air_noise = match wifi_device.mode {
-        device::DeviceMode::Monitor => {
-            println!("Device: {}, Mode: monitor,", wifi_device.name);
-            wifi_device.scan_channels_monitor()
-        },
-        device::DeviceMode::Promiscouos => {
-            println!("Device: {}, Mode: promiscouos,", wifi_device.name);
-            wifi_device.scan_channels_promiscouos()
-        }
-        device::DeviceMode::Normal => {
-            println!("Device: {}, Mode: normal,", wifi_device.name);
-            wifi_device.scan_channels_normal()
-        }
+        device::DeviceMode::Monitor => wifi_device.scan_channels_monitor(),
+        device::DeviceMode::Promiscouos => wifi_device.scan_channels_promiscouos(),
+        device::DeviceMode::Normal => wifi_device.scan_channels_normal(),
     };
-    air_noise.show();
+    air_noise.show(&wifi_device);
 }

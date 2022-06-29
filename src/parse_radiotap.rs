@@ -13,7 +13,6 @@ struct RadiotapData {
 }
 
 pub fn frames_data(mut device: Capture<Active>) -> NetSignals {
-    let linktype = device.get_datalink().get_name().expect("No such linktype");
     device.filter("type mgt subtype beacon", false).expect("need oter linktype for BPF");
 
     let mut ssid_signal: BTreeMap<String, i32> = BTreeMap::new();
@@ -61,7 +60,6 @@ pub fn frames_data(mut device: Capture<Active>) -> NetSignals {
             if now.elapsed() >= timeout {
                 break NetSignals {
                     channel: radiotap_data.channel,
-                    linktype,
                     ssid_signal,
                 };
             }
