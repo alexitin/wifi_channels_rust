@@ -58,7 +58,7 @@ impl AllDevices {
                     linktype,
                 }
             } else {
-// heck device for normal mode
+// Check device for normal mode
                 let device = set_normal_mode(&devices.name).ok();
 
                 if device.is_some() {

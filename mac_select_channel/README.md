@@ -1,3 +1,2 @@
 # mac_select_channel
-
-A description of this package.
+Turn on wifi device and switch to selected channel on mac os 10.15
