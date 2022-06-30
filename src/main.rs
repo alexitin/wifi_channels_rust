@@ -1,6 +1,7 @@
 mod device;
 mod frame;
 mod parse_radiotap;
+mod parse_avs;
 mod show;
 
 fn main() {

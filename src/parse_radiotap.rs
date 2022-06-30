@@ -6,14 +6,14 @@ use std::time::{Duration, Instant};
 use crate::frame::NetSignals;
 
 
-struct RadiotapData {
+struct RadioData {
     length: usize,
     channel: String,
     signal: Option<i8>,
 }
 
-pub fn frames_data(mut device: Capture<Active>) -> NetSignals {
-    device.filter("type mgt subtype beacon", false).expect("need oter linktype for BPF");
+pub fn frames_data_radiotap(mut device: Capture<Active>) -> NetSignals {
+//    device.filter("type mgt subtype beacon", false).expect("need oter linktype for BPF");
 
     let mut ssid_signal: BTreeMap<String, i32> = BTreeMap::new();
     let now = Instant::now();
@@ -22,7 +22,7 @@ pub fn frames_data(mut device: Capture<Active>) -> NetSignals {
     loop {
         if let Ok(packet) = device.next() {
             let radiotap_data = match get_radiotap_data(packet.data) {
-                Ok(r_data) => r_data,
+                Ok(data) => data,
                 Err(_) => {
                     println!("Broken radiotap header!");
                     continue;
@@ -67,7 +67,7 @@ pub fn frames_data(mut device: Capture<Active>) -> NetSignals {
     }
 }
 
-fn get_radiotap_data (data: &[u8]) -> Result<RadiotapData, TryFromSliceError> {
+fn get_radiotap_data (data: &[u8]) -> Result<RadioData, TryFromSliceError> {
     let len_radiotap = u16::from_le_bytes(data[2..4].try_into()?);    // usize::from_le_bytes() not working;
     let len_radiotap = usize::from(len_radiotap);
 
@@ -134,7 +134,7 @@ fn get_radiotap_data (data: &[u8]) -> Result<RadiotapData, TryFromSliceError> {
         None
     };
 
-    Ok(RadiotapData {
+    Ok(RadioData {
         length: len_radiotap,
         channel: channel_num,
         signal,

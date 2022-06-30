@@ -3,7 +3,7 @@ Helper for choice wifi chanel.
 
 This is a training project.  
 The purpose of this project is to learn practical skills in programming.  
-The task that this project solves is the determination of the least filled Wi-Fi channel on band 2 Ghz.  
+The task that this project solves is the determination of the least filled Wi-Fi channel on band 2.4 Ghz.  
 To solve this problem, the following actions are performed:  
 1. Searches for Wi-Fi devices and checks if they support monitor mode.  
 2. Attempt to establish a connection with the capture of radio data. It is sometimes possible to capture radio data in promiscouos or normal modes.  
