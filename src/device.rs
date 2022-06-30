@@ -145,7 +145,7 @@ fn choice_device(devices: Vec<Device>) -> Device {
 
 pub fn get_linktype(mut device: Capture<Active>) -> Linktype {
     if device.set_datalink(Linktype::IEEE802_11_RADIOTAP).is_ok() {
-        Linktype(163)
+        Linktype(127)
     } else if device.set_datalink(Linktype::IEEE802_11_AVS).is_ok() {
         Linktype(163)
     } else if device.set_datalink(Linktype::IEEE802_11_PRISM).is_ok() {
