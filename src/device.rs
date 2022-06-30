@@ -86,7 +86,7 @@ pub fn set_monitor_mode (dev: &str) -> Result<Capture<Active>, pcap::Error> {
         .rfmon(true)
         .snaplen(256)
         .buffer_size(256)
-        .timeout(10000)
+        .timeout(2000)
         .open()
 }
 
@@ -96,7 +96,7 @@ pub fn set_promiscouos_mode (dev: &str) -> Result<Capture<Active>, pcap::Error> 
         .promisc(true)
         .snaplen(256)
         .buffer_size(256)
-        .timeout(10000)
+        .timeout(2000)
         .open()
 }
 
@@ -106,7 +106,7 @@ pub fn set_normal_mode (dev: &str) -> Result<Capture<Active>, pcap::Error> {
         .promisc(true)
         .snaplen(256)
         .buffer_size(256)
-        .timeout(10000)
+        .timeout(2000)
         .open()
 }
 

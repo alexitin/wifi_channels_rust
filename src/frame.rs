@@ -22,7 +22,7 @@ extern "C" {
 
 impl WifiDevice {
     pub fn scan_channels_monitor(&self) -> AirNoise {
-        let time_select = Duration::new(1, 0);
+        let time_select = Duration::new(3, 0);
         thread::sleep(time_select);
 
         let mut status_select: isize;
@@ -79,7 +79,7 @@ impl WifiDevice {
     }
 
     pub fn scan_channels_promiscouos(&self) -> AirNoise {
-        let time_select = Duration::new(1, 0);
+        let time_select = Duration::new(3, 0);
         thread::sleep(time_select);
         
         let mut radio_air: Vec<NetSignals> = vec![];
@@ -92,7 +92,7 @@ impl WifiDevice {
         }
     }
     pub fn scan_channels_normal(&self) -> AirNoise {
-        let time_select = Duration::new(1, 0);
+        let time_select = Duration::new(3, 0);
         thread::sleep(time_select);
 
         let mut radio_air: Vec<NetSignals> = vec![];
