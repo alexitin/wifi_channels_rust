@@ -13,13 +13,14 @@ struct RadioData {
 }
 
 pub fn frames_data_avs(mut device: Capture<Active>) -> NetSignals {
+    device.filter("type mgt subtype beacon", false).expect("need oter linktype for BPF");
+
     let mut ssid_signal: BTreeMap<String, i32> = BTreeMap::new();
     let now = Instant::now();
     let timeout = Duration::from_secs(3);
 
     loop {
         if let Ok(packet) = device.next() {
-//            println!("{:?}", packet.data);
 
             let avs_data = match get_avs_data(packet.data) {
                 Ok(data) => data,
@@ -84,7 +85,7 @@ fn get_name_net(data: &[u8], len_frame: usize, len_avs: usize) -> Result<String,
     } else {
 // Cheking length frame
         if len_frame < (len_avs + 36 + 2) {
-            println!("len: {}", len_frame);
+//            println!("len: {}", len_frame);
             Ok("Unknown".to_string())
 
         } else {

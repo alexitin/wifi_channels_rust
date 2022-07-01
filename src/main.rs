@@ -2,6 +2,7 @@ mod device;
 mod frame;
 mod parse_radiotap;
 mod parse_avs;
+mod parse_ppi;
 mod show;
 
 fn main() {

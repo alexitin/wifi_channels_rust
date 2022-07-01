@@ -13,8 +13,8 @@ struct RadioData {
 }
 
 pub fn frames_data_radiotap(mut device: Capture<Active>) -> NetSignals {
-//    device.filter("type mgt subtype beacon", false).expect("need oter linktype for BPF");
-
+    device.filter("type mgt subtype beacon", false).expect("need oter linktype for BPF");
+    
     let mut ssid_signal: BTreeMap<String, i32> = BTreeMap::new();
     let now = Instant::now();
     let timeout = Duration::from_secs(3);
@@ -151,7 +151,7 @@ fn get_name_net(data: &[u8], len_frame: usize, len_radiotap: usize) -> Result<St
     } else {
 // Cheking length frame
         if len_frame < (len_radiotap + 36 + 2) {
-            println!("len: {}", len_frame);
+//            println!("len: {}", len_frame);
             Ok("Unknown".to_string())
 
         } else {

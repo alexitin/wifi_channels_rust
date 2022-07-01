@@ -2,7 +2,7 @@ use std::{time::Duration, thread, process, collections::BTreeMap, ffi::CString};
 
 use pcap::{Linktype, Capture, Active};
 
-use crate::{device, parse_radiotap, show::AirNoise, parse_avs};
+use crate::{device, parse_radiotap, show::AirNoise, parse_avs, parse_ppi};
 
 pub struct WifiDevice {
     pub name: String,
@@ -92,7 +92,7 @@ impl WifiDevice {
         }
     }
     pub fn scan_channels_normal(&self) -> AirNoise {
-        let time_select = Duration::new(3, 0);
+        let time_select = Duration::new(1, 0);
         thread::sleep(time_select);
 
         let mut radio_air: Vec<NetSignals> = vec![];
@@ -106,11 +106,12 @@ impl WifiDevice {
     }
 }
 
-fn get_frames(mut device: Capture<Active>, linktype: Linktype) -> NetSignals {
-    device.filter("type mgt subtype beacon", false).expect("need oter linktype for BPF");
+fn get_frames(device: Capture<Active>, linktype: Linktype) -> NetSignals {
+
     match linktype {
         Linktype(127) => parse_radiotap::frames_data_radiotap(device),
         Linktype(163) => parse_avs::frames_data_avs(device),
+        Linktype(192) => parse_ppi::frames_data_ppi(device),
         _ => {
 
             NetSignals {
