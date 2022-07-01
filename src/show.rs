@@ -32,7 +32,7 @@ impl AirNoise {
             let mut signals: Vec<_> = air.ssid_signal.values().cloned().collect();
             signals.sort();
             let signal_max = signals.last().unwrap_or(&0);
-            println!("Chanel: {}, Namber acces point: {}, Max signal, dB: {};", air.channel, number_ap, signal_max);
+            println!("Channel: {}, Number acces point: {}, Max signal, dB: {};", air.channel, number_ap, signal_max);
         }
     }
 }
