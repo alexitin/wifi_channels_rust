@@ -32,7 +32,13 @@ impl AirNoise {
             let mut signals: Vec<_> = air.ssid_rssi.values().cloned().collect();
             signals.sort();
             let signal_max = signals.last().unwrap_or(&0);
-            println!("Channel: {}, Number access point: {}, Max signal, dB: {};", air.channel, number_ap, signal_max);
+            let unit_measurement = if signal_max < &0 {
+                "dBm".to_owned()
+            } else {
+                "".to_owned()
+            };
+            println!("Channel: {}, Number access point: {}, Max signal: {} {};", 
+                air.channel, number_ap, signal_max, unit_measurement);
         }
     }
 }
