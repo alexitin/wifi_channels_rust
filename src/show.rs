@@ -10,7 +10,7 @@ impl AirNoise {
     pub fn show(self, wifi_device: &WifiDevice) {
         let mut list_ssid: Vec<&String> = Vec::new();
         for air in &self.radio_air {
-            let ssid_set: Vec<_> = air.ssid_signal.keys().clone().collect();
+            let ssid_set: Vec<_> = air.ssid_rssi.keys().clone().collect();
             for ssid in ssid_set {
                 if !list_ssid.contains(&ssid) {list_ssid.push(ssid)}
             }
@@ -27,12 +27,12 @@ impl AirNoise {
         let linktype = wifi_device.linktype.get_name().unwrap().to_owned();
         println!("Device: {}, Mode: {}, Linktype: {}", wifi_device.name, mode, linktype);
         for mut air in self.radio_air { 
-            air.ssid_signal.remove_entry(&home_ssid);
-            let number_ap = air.ssid_signal.len();
-            let mut signals: Vec<_> = air.ssid_signal.values().cloned().collect();
+            air.ssid_rssi.remove_entry(&home_ssid);
+            let number_ap = air.ssid_rssi.len();
+            let mut signals: Vec<_> = air.ssid_rssi.values().cloned().collect();
             signals.sort();
             let signal_max = signals.last().unwrap_or(&0);
-            println!("Channel: {}, Number acces point: {}, Max signal, dB: {};", air.channel, number_ap, signal_max);
+            println!("Channel: {}, Number access point: {}, Max signal, dB: {};", air.channel, number_ap, signal_max);
         }
     }
 }
