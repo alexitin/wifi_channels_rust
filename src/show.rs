@@ -16,7 +16,11 @@ impl AirNoise {
             }
         
         }
-        let home_ssid = choice_home_ssid(list_ssid);
+        let home_ssid = if !list_ssid.is_empty() {
+            choice_home_ssid(list_ssid)
+        } else {
+            "".to_owned()
+        };
 
         let mode = match wifi_device.mode {
             device::DeviceMode::Monitor => "monitor".to_owned(),

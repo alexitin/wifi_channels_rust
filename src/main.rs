@@ -1,4 +1,5 @@
 mod device;
+mod selector;
 mod frame;
 mod parse_radiotap;
 mod parse_avs;
@@ -15,11 +16,7 @@ fn main() {
     let wifi_device = devices.get_wifi_device();
 
 // Scan channels
-    let air_noise = match wifi_device.mode {
-        device::DeviceMode::Monitor => wifi_device.scan_channels_monitor(),
-        device::DeviceMode::Promiscouos => wifi_device.scan_channels_promiscouos(),
-        device::DeviceMode::Normal => wifi_device.scan_channels_normal(),
-    };
+    let air_noise = wifi_device.scan_channels();
 
 // Show results
     air_noise.show(&wifi_device);

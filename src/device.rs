@@ -27,12 +27,15 @@ impl AllDevices {
     }
 
     pub fn get_wifi_device(self) -> WifiDevice {
+//        let position = 1;
 
 // Check all devices for monitor mode compatibility and use the first match
+//        if position == 0 {
         if let Some(position) = self.devices.iter()
             .position(|dev| set_monitor_mode(&dev.name).is_ok()) {
             let device = set_monitor_mode(&self.devices[position].name).unwrap();
             let linktype = get_linktype(device);
+//            let linktype = Linktype(127);
             let name = self.devices[position].name.to_owned();
 
             WifiDevice {
@@ -48,7 +51,7 @@ impl AllDevices {
 
 // Check device for promiscouos mode
             let device = set_promiscouos_mode(&devices.name).ok();
-
+//            let device = None;
             if device.is_some() {
                 let linktype = get_linktype(device.unwrap());
 
@@ -86,7 +89,7 @@ pub fn set_monitor_mode (dev: &str) -> Result<Capture<Active>, pcap::Error> {
         .rfmon(true)
         .snaplen(256)
         .buffer_size(256)
-        .timeout(2000)
+        .timeout(900)
         .open()
 }
 
@@ -96,7 +99,7 @@ pub fn set_promiscouos_mode (dev: &str) -> Result<Capture<Active>, pcap::Error> 
         .promisc(true)
         .snaplen(256)
         .buffer_size(256)
-        .timeout(2000)
+        .timeout(900)
         .open()
 }
 
@@ -106,7 +109,7 @@ pub fn set_normal_mode (dev: &str) -> Result<Capture<Active>, pcap::Error> {
         .promisc(true)
         .snaplen(256)
         .buffer_size(256)
-        .timeout(2000)
+        .timeout(900)
         .open()
 }
 
