@@ -1,8 +1,11 @@
 use std::{process, io};
 
+use pcap::Linktype;
+
 use crate::{frame::{WifiDevice, NetSignals}, device};
 
 pub struct AirNoise {
+    pub linktype: Option<Linktype>,
     pub radio_air: Vec<NetSignals>,
 }
 
@@ -28,7 +31,11 @@ impl AirNoise {
             device::DeviceMode::Normal => "normal".to_owned(),
             
         };
-        let linktype = wifi_device.linktype.get_name().unwrap().to_owned();
+        let linktype = match self.linktype {
+            Some(dlt) => dlt.get_name().unwrap(),
+            None => "-".to_owned(),
+        };
+        
         println!("Device: {}, Mode: {}, Linktype: {}", wifi_device.name, mode, linktype);
         for mut air in self.radio_air { 
             air.ssid_rssi.remove_entry(&home_ssid);
