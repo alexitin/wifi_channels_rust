@@ -27,7 +27,7 @@ struct SwiftTarget {
     paths: SwiftPaths,
 }
 
-fn main() {
+fn build_mac_selector() {
     let profile = env::var("PROFILE").unwrap();
 //    let target = format!("{}-apple-macosx", MACBOOK_ARCH);
 
@@ -64,4 +64,20 @@ fn main() {
 
     println!("cargo:rerun-if-changed=mac_select_channel/src/*.swift");
 
+}
+
+fn build_lin_selector() {
+    cc::Build::new()
+        .file("./lin_select_channel/lin_select_channel.c")
+        .compile("lin_select_channel");
+}
+
+fn main() {
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
+    if target_os == "macos" {
+        build_mac_selector();
+    }
+    if target_os == "linux" {
+        build_lin_selector();
+    }
 }

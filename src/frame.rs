@@ -3,6 +3,7 @@ use std::{time::Duration, thread, collections::BTreeMap, ffi::CString, process};
 use pcap::{Linktype, Capture, Active};
 
 use crate::{device, parse_radiotap, parse_avs, parse_ppi, parse_80211, show, selector::SelectorChannel};
+// use crate::{device, parse_radiotap, parse_avs, parse_ppi, parse_80211, show};
 
 pub struct WifiDevice {
     pub name: String,
@@ -28,7 +29,7 @@ impl WifiDevice {
 
         match self.mode {
             device::DeviceMode::Monitor => {
-                for channel in 1..12  {
+                for channel in 1..12 {
                     SelectorChannel::set_channel(ptr_name, channel);
                     let mut capture_device = device::set_monitor_mode(&self.name).unwrap();
                     if let Some(dlt) = linktype {
@@ -90,8 +91,6 @@ pub fn get_linktype(device: &mut Capture<Active>) -> Linktype {
         Linktype(127)
     } else if device.set_datalink(Linktype::IEEE802_11_AVS).is_ok() {
         Linktype(163)
-    } else if device.set_datalink(Linktype::IEEE802_11_PRISM).is_ok() {
-        Linktype(119)
     } else if device.set_datalink(Linktype::PPI).is_ok() {
         Linktype(192)
     } else if device.set_datalink(Linktype::IEEE802_11).is_ok() {
