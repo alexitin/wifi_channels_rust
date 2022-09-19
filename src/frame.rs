@@ -1,9 +1,8 @@
-use std::{time::Duration, thread, collections::BTreeMap, ffi::CString, process};
+use std::{time::Duration, thread, sync::mpsc, collections::BTreeMap, ffi::CString, process};
 
 use pcap::{Linktype, Capture, Active};
 
 use crate::{device, parse_radiotap, parse_avs, parse_ppi, parse_80211, show, selector::SelectorChannel};
-// use crate::{device, parse_radiotap, parse_avs, parse_ppi, parse_80211, show};
 
 pub struct WifiDevice {
     pub name: String,
@@ -17,7 +16,7 @@ pub struct NetSignals {
 
 impl WifiDevice {
     pub fn scan_channels(&self) -> show::AirNoise {
-        let time_select = Duration::new(1, 0);
+        let time_select = Duration::from_secs(1);
         thread::sleep(time_select);
 
         let mut linktype: Option<Linktype> = None;
@@ -74,16 +73,19 @@ impl WifiDevice {
 
 fn get_frames(device: Capture<Active>, linktype: Linktype) -> BTreeMap<String, i32> {
 
-    match linktype {
-        Linktype(127) => parse_radiotap::frames_data_radiotap(device),
-        Linktype(163) => parse_avs::frames_data_avs(device),
-        Linktype(192) => parse_ppi::frames_data_ppi(device),
-        Linktype(105) => parse_80211::frames_data_80211(device),
-        _ => {
-            let ssid_rssi: BTreeMap<String, i32> = BTreeMap::new();
-            ssid_rssi
-        },
-    }
+    let (tx,rx) = mpsc::channel();
+
+    thread::spawn(move || {
+        let ssid_rssi = match linktype {
+            Linktype(127) => parse_radiotap::frames_data_radiotap(device),
+            Linktype(163) => parse_avs::frames_data_avs(device),
+            Linktype(192) => parse_ppi::frames_data_ppi(device),
+            Linktype(105) => parse_80211::frames_data_80211(device),
+            _ => BTreeMap::new(),
+        };
+        tx.send(ssid_rssi).unwrap();
+    });
+    rx.recv_timeout(Duration::from_secs(4)).unwrap_or_default()
 }
 
 pub fn get_linktype(device: &mut Capture<Active>) -> Linktype {

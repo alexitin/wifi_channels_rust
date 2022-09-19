@@ -6,9 +6,6 @@
 #include <sys/ioctl.h>
 #include <net/ethernet.h>
 
-// char *device = "wlp3s0";
-// int channel_new_freq = 2412;
-
 int lin_select_channel(char *device, int channel_new_freq);
 int lin_get_channel(char *device);
 

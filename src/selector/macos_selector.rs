@@ -16,7 +16,7 @@ impl MacOsSelector {
         }
         match status_select {
             0 => {
-                println!("Scanning chanel {}", &channel);
+                println!("Scanning channel {}", &channel);
             },
             1 => {
                 println!("Problem enable WiFi device");
