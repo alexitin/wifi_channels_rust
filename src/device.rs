@@ -16,7 +16,7 @@ pub struct AllDevices {
 
 impl AllDevices {
 
-    pub fn new () -> AllDevices {
+    pub fn new() -> AllDevices {
         let devices = Device::list().unwrap_or_else(|err| {
             println!("Problem get list all net devices: {}", err);
             process::exit(1)
