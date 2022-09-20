@@ -1,4 +1,4 @@
-use std::{time::Duration, thread, sync::mpsc, collections::BTreeMap, ffi::CString, process};
+use std::{time::Duration, thread, sync::mpsc, collections::HashMap, ffi::CString, process};
 
 use pcap::{Linktype, Capture, Active};
 
@@ -11,7 +11,7 @@ pub struct WifiDevice {
 
 pub struct NetSignals {
     pub channel: isize,
-    pub ssid_rssi: BTreeMap<String, i32>,
+    pub ssid_rssi: HashMap<String, i32>,
 }
 
 impl WifiDevice {
@@ -71,7 +71,7 @@ impl WifiDevice {
     }
 }
 
-fn get_frames(device: Capture<Active>, linktype: Linktype) -> BTreeMap<String, i32> {
+fn get_frames(device: Capture<Active>, linktype: Linktype) -> HashMap<String, i32> {
 
     let (tx,rx) = mpsc::channel();
 
@@ -81,7 +81,7 @@ fn get_frames(device: Capture<Active>, linktype: Linktype) -> BTreeMap<String, i
             Linktype(163) => parse_avs::frames_data_avs(device),
             Linktype(192) => parse_ppi::frames_data_ppi(device),
             Linktype(105) => parse_80211::frames_data_80211(device),
-            _ => BTreeMap::new(),
+            _ => HashMap::new(),
         };
         tx.send(ssid_rssi).unwrap();
     });

@@ -1,12 +1,12 @@
 use pcap::{Capture, Active};
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use crate::parse_80211;
 
-pub fn frames_data_avs(mut device: Capture<Active>) -> BTreeMap<String, i32> {
+pub fn frames_data_avs(mut device: Capture<Active>) -> HashMap<String, i32> {
 
-    let mut ssid_rssi: BTreeMap<String, i32> = BTreeMap::new();
+    let mut ssid_rssi: HashMap<String, i32> = HashMap::new();
     let now = Instant::now();
     let timeout = Duration::from_secs(3);
 
