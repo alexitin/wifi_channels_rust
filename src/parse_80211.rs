@@ -8,7 +8,11 @@ pub fn frames_data_80211(mut device: Capture<Active>) -> HashMap<String, i32> {
     let now = Instant::now();
     let timeout = Duration::from_secs(3);
 
-    loop {
+    'calc: loop {
+        while now.elapsed() > timeout {
+            break 'calc;
+        }
+
         if let Ok(packet) = device.next() {
 
             let len_radio_header: usize = 0;
@@ -27,12 +31,9 @@ pub fn frames_data_80211(mut device: Capture<Active>) -> HashMap<String, i32> {
             let name_net = get_name_net(packet.data, len_frame, len_radio_header);
 
             ssid_signal.entry(name_net).or_insert(signal_net);
-
-            if now.elapsed() >= timeout {
-                break ssid_signal
-            };
         }
     }
+    ssid_signal
 }
 
 pub fn get_name_net(data: &[u8], len_frame: usize, len_radio_header: usize) -> String {

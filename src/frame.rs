@@ -1,4 +1,4 @@
-use std::{time::Duration, thread, sync::mpsc, collections::HashMap, ffi::CString, process};
+use std::{time::Duration, thread, collections::HashMap, ffi::CString, process};
 
 use pcap::{Linktype, Capture, Active};
 
@@ -72,10 +72,6 @@ impl WifiDevice {
 }
 
 fn get_frames(device: Capture<Active>, linktype: Linktype) -> HashMap<String, i32> {
-
-    let (tx,rx) = mpsc::channel();
-
-    thread::spawn(move || {
         let ssid_rssi = match linktype {
             Linktype(127) => parse_radiotap::frames_data_radiotap(device),
             Linktype(163) => parse_avs::frames_data_avs(device),
@@ -83,9 +79,7 @@ fn get_frames(device: Capture<Active>, linktype: Linktype) -> HashMap<String, i3
             Linktype(105) => parse_80211::frames_data_80211(device),
             _ => HashMap::new(),
         };
-        tx.send(ssid_rssi).unwrap();
-    });
-    rx.recv_timeout(Duration::from_secs(4)).unwrap_or_default()
+        ssid_rssi
 }
 
 pub fn get_linktype(device: &mut Capture<Active>) -> Linktype {

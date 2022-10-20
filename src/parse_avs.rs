@@ -10,7 +10,11 @@ pub fn frames_data_avs(mut device: Capture<Active>) -> HashMap<String, i32> {
     let now = Instant::now();
     let timeout = Duration::from_secs(3);
 
-    loop {
+    'calc: loop {
+        while now.elapsed() > timeout {
+            break 'calc;
+        }
+
         if let Ok(packet) = device.next() {
 
             let len_avs = match packet.data[4..8].try_into() {
@@ -53,10 +57,7 @@ pub fn frames_data_avs(mut device: Capture<Active>) -> HashMap<String, i32> {
             ssid_rssi.entry(name_net)
                 .and_modify(|signal| {*signal = (*signal + signal_net) / 2})
                 .or_insert(signal_net);
-
-            if now.elapsed() >= timeout {
-                break ssid_rssi
-            };
         }
     }
+    ssid_rssi
 }
