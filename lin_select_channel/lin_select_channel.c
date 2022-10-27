@@ -8,6 +8,7 @@
 
 int lin_select_channel(char *device, int channel_new_freq);
 int lin_get_channel(char *device);
+int lin_set_managed(char *device);
 
 static int ioctlfd;
 static int success;
@@ -18,6 +19,7 @@ static struct iwreq iwr;
 static void ioctl_init(void);
 static void ioctl_off(const char *device);
 static void ioctl_monitor(const char *device);
+static void ioctl_managed(const char *device);
 static void ioctl_up(const char *device);
 static void ioctl_get_channel(const char *device);
 static void ioctl_set_channel(const char *device, int channel_new_freq);
@@ -90,8 +92,36 @@ int lin_get_channel(char *device) {
     } else {
         ioctl_end();
         return channel_cur_freq;
-    }   
+    }
+}
 
+int lin_set_managed(char *device) {
+
+    ioctl_init();
+    if (ioctlfd < 0) {
+        return 1;               // failed creation socket
+    }
+
+    ioctl_off(device);
+    if (success != 0) {
+        ioctl_end();
+        return success;
+    }
+
+    ioctl_managed(device);
+    if (success != 0) {
+        ioctl_end();
+        return success;
+    }
+
+    ioctl_up(device);
+    if (success != 0) {
+        ioctl_end();
+        return success;
+    } else {
+        ioctl_end();
+        return success;
+    }
 }
 
 /*===========================================================================*/
@@ -174,6 +204,16 @@ static void ioctl_set_channel(const char *device, int channel_new_freq) {
             }
         }
     } else return;
+}
+
+static void ioctl_managed(const char *device) {
+    memset(&iwr, 0, sizeof(iwr));
+    memcpy(&iwr.ifr_name, device, IFNAMSIZ);
+    iwr.u.mode = IW_MODE_INFRA;
+    if(ioctl(ioctlfd,SIOCSIWMODE, &iwr) <0) {
+        success = 10;                    // failed set managed (infrastructure) mode
+        return;
+    }
 }
 
 static void ioctl_end(void) {

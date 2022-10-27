@@ -42,6 +42,8 @@ impl WifiDevice {
                     let channel_ssid_rssi = NetSignals {channel, ssid_rssi};
                     radio_air.push(channel_ssid_rssi);
                 }
+                #[cfg(target_os = "linux")]
+                SelectorChannel::set_managed_mode(ptr_name);
             },
             device::DeviceMode::Promiscouos => {
                 let channel = SelectorChannel::get_channel(ptr_name);
@@ -72,14 +74,14 @@ impl WifiDevice {
 }
 
 fn get_frames(device: Capture<Active>, linktype: Linktype) -> HashMap<String, i32> {
-        let ssid_rssi = match linktype {
-            Linktype(127) => parse_radiotap::frames_data_radiotap(device),
-            Linktype(163) => parse_avs::frames_data_avs(device),
-            Linktype(192) => parse_ppi::frames_data_ppi(device),
-            Linktype(105) => parse_80211::frames_data_80211(device),
-            _ => HashMap::new(),
-        };
-        ssid_rssi
+    let ssid_rssi = match linktype {
+        Linktype(127) => parse_radiotap::frames_data_radiotap(device),
+        Linktype(163) => parse_avs::frames_data_avs(device),
+        Linktype(192) => parse_ppi::frames_data_ppi(device),
+        Linktype(105) => parse_80211::frames_data_80211(device),
+        _ => HashMap::new(),
+    };
+    ssid_rssi
 }
 
 pub fn get_linktype(device: &mut Capture<Active>) -> Linktype {

@@ -5,6 +5,7 @@ pub struct LinuxSelector;
 extern "C" {
     fn lin_select_channel(ptr_name: *const i8, channel_freq: isize) -> isize;
     fn lin_get_channel(ptr_name: *const i8) -> isize;
+    fn lin_set_managed(ptr_name: *const i8) -> isize;
 }
 
 impl LinuxSelector {
@@ -109,4 +110,37 @@ impl LinuxSelector {
             },
         }
     }
+
+    pub fn set_managed_mode(ptr_name: *const i8) {
+        let status_managed_mode: isize;
+        unsafe {
+            status_managed_mode = lin_set_managed(ptr_name);
+        }
+        match status_managed_mode {
+            0 => {
+                println!("Return managed mode WiFi");
+            },
+            1 => {
+                println!("Problem failed creation socket");
+                process::exit(1);
+            },
+            2 => {
+                println!("Problem DOWN device");
+                process::exit(1);
+            },
+            4 => {
+                println!("Problem UP device");
+                process::exit(1);
+            },            
+            10 => {
+                println!("Problem set managed mode");
+                process::exit(1);
+            },
+            _ => {
+                println!("Problem no get interface of WiFi device");
+                process::exit(1);
+            },
+        }
+    }
+
 }
