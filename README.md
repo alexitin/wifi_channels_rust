@@ -8,7 +8,7 @@ To solve this problem, the following actions are performed:
 2. Attempt to establish a connection with the capture of radio data. It is sometimes possible to capture radio data in promiscouos or normal modes.  
 3. Scanning wifi channels to determine ssid and their signal strength:<br />
     a) automatic discovery of supported DLTs and  set it;<br />
-    b) automatic channel switching from 1 to 11 and their sequential scanning
+    b) automatic channel switching from 1 to 12 and their sequential scanning
     - for mac os used module on swift and core wlan lib;
     - for linux used module on c and ioctl mechanism.
 4. Exclude from home network scan data.  
