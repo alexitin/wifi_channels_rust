@@ -15,7 +15,7 @@ pub fn frames_data_avs(mut device: Capture<Active>) -> HashMap<String, i32> {
             break 'calc;
         }
 
-        if let Ok(packet) = device.next() {
+        if let Ok(packet) = device.next_packet() {
 
             let len_avs = match packet.data[4..8].try_into() {
                 Ok(len) => u32::from_be_bytes(len),

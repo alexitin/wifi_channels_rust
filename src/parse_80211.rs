@@ -13,7 +13,7 @@ pub fn frames_data_80211(mut device: Capture<Active>) -> HashMap<String, i32> {
             break 'calc;
         }
 
-        if let Ok(packet) = device.next() {
+        if let Ok(packet) = device.next_packet() {
 
             let len_radio_header: usize = 0;
             let signal_net = 0;

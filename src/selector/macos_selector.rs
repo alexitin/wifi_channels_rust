@@ -9,14 +9,14 @@ extern "C" {
 
 impl MacOsSelector {
 
-    pub fn set_channel(ptr_name: *const i8, channel: isize) {
+    pub fn set_channel(ptr_name: *const i8, channel: isize) -> isize {
         let status_select: isize;
         unsafe {
             status_select = mac_select_channel(ptr_name, channel);
         }
         match status_select {
             0 => {
-                println!("Scanning channel {}", &channel);
+                status_select
             },
             1 => {
                 println!("Problem enable WiFi device");

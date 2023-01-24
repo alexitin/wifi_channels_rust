@@ -1,92 +1,188 @@
-use std::{process, io};
+use std::collections::HashMap;
+use std::sync::mpsc::{self, Receiver};
+use std::{thread, process, isize};
 
-use pcap::Linktype;
+use cursive::{Cursive, CursiveRunnable};
+use cursive::views::{SelectView, Dialog, TextView};
+use cursive::view::{Nameable, Resizable};
+use cursive::traits::*;
 
-use crate::{frame::{WifiDevice, NetSignals}, device};
+use crate::{device, frame};
 
-pub struct AirNoise {
-    pub linktype: Option<Linktype>,
-    pub radio_air: Vec<NetSignals>,
+struct ScanningView {
+    msg: String,
+    rx: mpsc::Receiver<isize>,
 }
 
-impl AirNoise {
-    pub fn show(self, wifi_device: &WifiDevice) {
-        let mut list_ssid: Vec<&String> = Vec::new();
-        for air in &self.radio_air {
-            let ssid_set: Vec<_> = air.ssid_rssi.keys().clone().collect();
-            for ssid in ssid_set {
-                if !list_ssid.contains(&ssid) {list_ssid.push(ssid)}
-            }
-        
-        }
-        let home_ssid = if !list_ssid.is_empty() {
-            choice_home_ssid(list_ssid)
-        } else {
-            "".to_owned()
-        };
+impl ScanningView {
+    fn new(rx: mpsc::Receiver<isize>) -> Self {
+        let msg = "Start scanning channels".to_string();
+        ScanningView {msg, rx}
+    }
 
-        let mode = match wifi_device.mode {
-            device::DeviceMode::Monitor => "monitor".to_owned(),
-            device::DeviceMode::Promiscouos => "promiscous".to_owned(),
-            device::DeviceMode::Normal => "normal".to_owned(),
+    fn update(&mut self) {
+        if let Ok(channel) = self.rx.try_recv() {
+            let channel_msg = format!("Scanning channel {}", channel);
+            self.msg = channel_msg;
+        }
+    }
+}
+
+impl View for ScanningView {
+    fn layout(&mut self, _: cursive::Vec2) {
+        self.update();
+    }
+
+    fn draw(&self, printer: &cursive::Printer) {
+        printer.print((0,printer.size.y - 1), &self.msg);
+    }
+}
+
+pub fn get_info(s: &mut Cursive, wifi_devices: device::WifiDevices) {
+
+    let select_device = SelectView::new()
+        .with_all_str(wifi_devices.devices)
+        .on_submit(move |s, name: &str| {
+            let mode = wifi_devices.mode.unwrap();
+            let name = name.to_string();
+            let wifi_device = device::WifiDevice::get_wifi_device(name, mode);
+            let device_content = show_device(&wifi_device);
+            s.call_on_name("device_info", |view: &mut TextView| {
+                view.set_content(device_content);
+            }).unwrap();
+            s.pop_layer();
             
-        };
-        let linktype = match self.linktype {
-            Some(dlt) => dlt.get_name().unwrap(),
-            None => "-".to_owned(),
-        };
-        
-        println!("Device: {}, Mode: {}, Linktype: {}", wifi_device.name, mode, linktype);
-        for mut air in self.radio_air { 
-            air.ssid_rssi.remove_entry(&home_ssid);
-            let number_ap = air.ssid_rssi.len();
-            let mut signals: Vec<_> = air.ssid_rssi.values().cloned().collect();
-            signals.sort();
-            let signal_max = signals.last().unwrap_or(&0);
-            let unit_measurement = if signal_max < &0 {
-                "dBm".to_owned()
-            } else {
-                "".to_owned()
-            };
-            println!("Channel: {}, Number access point: {}, Max signal: {} {};", 
-                air.channel, number_ap, signal_max, unit_measurement);
-        }
+            let cb_sink1 = s.cb_sink().clone();
+            let cb_sink2 = s.cb_sink().clone();
+
+            let (tx1, rx1) = mpsc::channel();
+            let (tx2, rx2) = mpsc::channel();
+
+            thread::spawn(move || {
+                let a_n = frame::AirNoise::scan_channels(wifi_device, tx2, cb_sink2);
+                cb_sink1.send(Box::new(|s| select_id(s, rx1))).unwrap();
+                tx1.send(a_n).unwrap();
+            });
+
+            let scanning_info = ScanningView::new(rx2);
+            s.add_layer(Dialog::around(scanning_info).title("Scanning info").fixed_width(50));
+
+        })
+        .with_name("select_device");
+    s.add_layer(Dialog::around(select_device)
+        .title("Select wifi device")
+    );
+}
+
+pub fn exit_cursive(mut siv: CursiveRunnable, text: &str) -> ! {
+    siv.add_layer(Dialog::text(format!("{}\nPress 'q' to quit", text))
+        .title("Error")
+        .button("Quit", |s| s.quit()));
+    siv.run();
+    process::exit(1)
+}
+
+fn show_device(wifi_device: &device::WifiDevice) -> String {
+    let mode = match wifi_device.mode {
+        device::DeviceMode::Monitor => "monitor",
+        device::DeviceMode::Promiscouos => "promiscous",
+        device::DeviceMode::Normal => "normal",
+    };
+    let linktype = wifi_device.linktype.get_name().expect("Checked for error before");
+    let content = format!("Device: {},  Mode: {},   Link type: {}", wifi_device.name, mode, linktype);
+    content
+}
+
+fn select_id (s: &mut Cursive, rx1: Receiver<frame::AirNoise>) {
+    if let Ok(air_noise) = rx1.try_recv() {
+        s.pop_layer();
+        let noise_info = show_noise(air_noise);
+        s.add_layer(noise_info);
     }
 }
 
-fn choice_home_ssid(list_ssid: Vec<&String>) -> String {
-    let mut i = 0;
-    for ssid in &list_ssid {
-        i += 1;
-        println!("{}. {}", &i, ssid);
-    }
-    println!("Choose your home ssid, or press 0 if home ssid does not exist:");
+fn show_noise(air_noise: frame::AirNoise) -> Dialog {
+    let mut list_ssid = air_noise.net_signals.iter()
+        .map(|net_signals| net_signals.ssid_rssi
+            .keys()
+            .collect::<Vec<_>>())
+        .flatten()
+        .collect::<Vec<_>>();
+    let none = "<<None>>".to_string();
+    list_ssid.sort();
+    list_ssid.dedup();
+    list_ssid.insert(0,&none);
 
-    let buf = loop {
-        let mut buf = String::new();
-        io::stdin()
-            .read_line(&mut buf)
-            .unwrap_or_else(|err| {
-                println!("Failed read yuor choice: {}", err);
-                process::exit(1)
+    let select_home_net = SelectView::<String>::new()
+        .with_all_str(list_ssid)
+        .on_submit(move |s, home_ssid: &str| {
+            let home_info= air_noise.net_signals.iter()
+                .filter(|net| net.ssid_rssi.contains_key(home_ssid))
+                .max_by_key(|net| net.ssid_rssi.get(home_ssid));
+            let (home_channel, home_rssi) = if home_info.is_none() {
+                (0 as isize, 0)
+            } else {
+                (home_info.unwrap().channel,
+                home_info.unwrap().ssid_rssi.get(home_ssid).unwrap().to_owned())
+            };
+            let channels_info: Vec<_> = air_noise.net_signals.iter()
+                .map(|net| {
+                    let mut n = net.clone();
+                    n.ssid_rssi.remove(home_ssid);
+                    n
+                })
+//                .map(|net| net.to_owned())
+                .collect();
+            let mut channels_content: Vec<String> = Vec::with_capacity(12);
+            channels_info.iter().for_each(|net_signal| {
+                let mut signals: Vec<_> = net_signal.ssid_rssi.values().cloned().collect();
+                signals.sort();
+                let signal_max = signals.last().unwrap_or(&0);
+                let number_ap = net_signal.ssid_rssi.len();
+                let unit_measurement = if signal_max < &0 {
+                    "dBm".to_owned()
+                } else {
+                    "     ".to_owned()
+                };
+                let channel_info = if number_ap != 0 {
+                    format!("{:02}{:^20}{} {}", &net_signal.channel, number_ap, signal_max, unit_measurement)
+                } else {
+                    format!("{:02}{:>27}", &net_signal.channel, "empty")
+                };
+                channels_content.push(channel_info);
             });
-        let buf = match buf.trim().parse::<usize>() {
-            Ok(num) => num,
-            Err(_) => {
-                println!("Incorrect choice");
-                continue;
-            },
-        };
-        if buf > list_ssid.len() {
-            println!("Incorrect choice: {}", &buf);
-            continue;
-        } else {
-            break buf
-        };
-    };
-    if buf > 0 {
-        list_ssid[buf - 1].to_owned()
-    } else {
-        "0".to_owned()
-    }
+            s.pop_layer();
+
+            s.call_on_name("channels_info", |view: &mut SelectView::<String>| {
+                view.add_all_str(channels_content);
+                view.set_on_select(move |s, _ch_content| {
+                let channel_id = s.find_name::<SelectView<String>>("channels_info").unwrap()
+                    .selected_id().unwrap();
+                let ssid_rssi = channels_info[channel_id].ssid_rssi.clone();
+                show_list_ssid(s, ssid_rssi);
+                })
+            }).unwrap();
+
+            s.call_on_name("home", |view: &mut TextView| {
+                let home_content = format!("Home network: {},   Maximal signal home network on channel: {}, Home network signal: {}",
+                    home_ssid, home_channel, home_rssi);
+                view.set_content(home_content);
+            }).unwrap();
+        })
+        .autojump()
+        .scrollable();
+
+    Dialog::around(select_home_net)
+            .title("Select home network or <<None>>")
+}
+
+fn show_list_ssid(s: &mut Cursive, net_signals: HashMap<String, i32>) {
+    s.call_on_name("channel_SSID", |view: &mut TextView| {
+        let mut channel_content = String::new();
+        for (ssid, rssi) in net_signals.iter() {
+            let ssid_rssi = format!{"{:<25}{:>10} dBm\n", ssid, rssi};
+            channel_content.push_str(&ssid_rssi);
+        }
+        view.set_content(channel_content);
+    }).unwrap();
 }

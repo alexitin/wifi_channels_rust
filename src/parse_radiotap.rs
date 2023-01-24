@@ -15,7 +15,7 @@ pub fn frames_data_radiotap(mut device: Capture<Active>) -> HashMap<String, i32>
             break 'calc;
         }
 
-        if let Ok(packet) = device.next() {
+        if let Ok(packet) = device.next_packet() {
 
             let len_radiotap = match packet.data[2..4].try_into() {
                 Ok(len) => u16::from_le_bytes(len),
