@@ -1,13 +1,16 @@
 use std::collections::HashMap;
 use std::sync::mpsc::{self, Receiver};
 use std::{thread, process, isize};
+use std::ffi::CString;
 
-use cursive::{Cursive, CursiveRunnable};
-use cursive::views::{SelectView, Dialog, TextView};
+use cursive::{Cursive, CursiveExt};
+use cursive::views::{SelectView, Dialog, TextView, ProgressBar};
 use cursive::view::{Nameable, Resizable};
 use cursive::traits::*;
 
+use crate::device::WifiDevice;
 use crate::{device, frame};
+use crate::selector::SelectorChannel;
 
 struct ScanningView {
     msg: String,
@@ -38,7 +41,8 @@ impl View for ScanningView {
     }
 }
 
-pub fn get_info(s: &mut Cursive, wifi_devices: device::WifiDevices) {
+pub fn get_info(s: &mut Cursive, wifi_devices: &device::WifiDevices) {
+    let wifi_devices = wifi_devices.to_owned();
 
     let select_device = SelectView::new()
         .with_all_str(wifi_devices.devices)
@@ -46,6 +50,7 @@ pub fn get_info(s: &mut Cursive, wifi_devices: device::WifiDevices) {
             let mode = wifi_devices.mode.unwrap();
             let name = name.to_string();
             let wifi_device = device::WifiDevice::get_wifi_device(name, mode);
+            s.set_user_data(wifi_device.clone());
             let device_content = show_device(&wifi_device);
             s.call_on_name("device_info", |view: &mut TextView| {
                 view.set_content(device_content);
@@ -74,7 +79,7 @@ pub fn get_info(s: &mut Cursive, wifi_devices: device::WifiDevices) {
     );
 }
 
-pub fn exit_cursive(mut siv: CursiveRunnable, text: &str) -> ! {
+pub fn exit_cursive(siv: &mut Cursive, text: &str) -> ! {
     siv.add_layer(Dialog::text(format!("{}\nPress 'q' to quit", text))
         .title("Error")
         .button("Quit", |s| s.quit()));
@@ -118,20 +123,15 @@ fn show_noise(air_noise: frame::AirNoise) -> Dialog {
         .on_submit(move |s, home_ssid: &str| {
             let home_info= air_noise.net_signals.iter()
                 .filter(|net| net.ssid_rssi.contains_key(home_ssid))
+                .filter(|net| net.ssid_rssi.get(home_ssid) < Some(&0))
                 .max_by_key(|net| net.ssid_rssi.get(home_ssid));
-            let (home_channel, home_rssi) = if home_info.is_none() {
-                (0 as isize, 0)
-            } else {
-                (home_info.unwrap().channel,
-                home_info.unwrap().ssid_rssi.get(home_ssid).unwrap().to_owned())
-            };
+
             let channels_info: Vec<_> = air_noise.net_signals.iter()
                 .map(|net| {
                     let mut n = net.clone();
                     n.ssid_rssi.remove(home_ssid);
                     n
                 })
-//                .map(|net| net.to_owned())
                 .collect();
             let mut channels_content: Vec<String> = Vec::with_capacity(12);
             channels_info.iter().for_each(|net_signal| {
@@ -163,11 +163,43 @@ fn show_noise(air_noise: frame::AirNoise) -> Dialog {
                 })
             }).unwrap();
 
-            s.call_on_name("home", |view: &mut TextView| {
-                let home_content = format!("Home network: {},   Maximal signal home network on channel: {}, Home network signal: {}",
-                    home_ssid, home_channel, home_rssi);
-                view.set_content(home_content);
-            }).unwrap();
+            if let Some(home_info) = home_info {
+                let home_channel = home_info.channel;
+                let wifi_device = s.take_user_data::<WifiDevice>().unwrap();
+                let home_ssid = home_ssid.to_string();
+                let cb = s.cb_sink().clone();
+
+                s.call_on_name("home_info", |view: &mut TextView| {
+                    let home_content = format!("Home network: {}, Maximamal RSSI detected on channel: {}",
+                        &home_ssid, &home_channel);
+                    view.set_content(home_content);
+                }).unwrap();
+
+                s.call_on_name("home_bar", |view: &mut ProgressBar| {
+                    view.set_range(0, 100);
+                    view.set_label(|val, (_min, _max)| {
+                        format!("{:<80}{}{:>60}", "-100", val as isize - 100, "0 dBm")
+                    });
+                    view.start(move |counter| {
+                        let b_name = wifi_device.name.as_bytes().to_vec();
+                        let c_name = CString::new(b_name).unwrap();
+                        let ptr_name = c_name.as_ptr();
+                        let _status_select = SelectorChannel::set_channel(ptr_name, home_channel);
+                        loop {
+                            let mut capture_device = device::set_monitor_mode(&wifi_device.name).expect("cheking early");
+                            capture_device.set_datalink(wifi_device.linktype).expect("cheking early");
+                            let ssid_rssi = frame::get_frames(capture_device, wifi_device.linktype);
+                            if let Some(home_rssi) = ssid_rssi.get(&home_ssid) {
+                                let counter_content = home_rssi + 100;
+                                if counter_content >= 0 {
+                                counter.set(counter_content as usize);
+                                }
+                            }
+                            cb.send(Box::new(Cursive::noop)).unwrap();
+                        }
+                    })
+                }).unwrap();
+            }
         })
         .autojump()
         .scrollable();
@@ -180,7 +212,12 @@ fn show_list_ssid(s: &mut Cursive, net_signals: HashMap<String, i32>) {
     s.call_on_name("channel_SSID", |view: &mut TextView| {
         let mut channel_content = String::new();
         for (ssid, rssi) in net_signals.iter() {
-            let ssid_rssi = format!{"{:<25}{:>10} dBm\n", ssid, rssi};
+            let unit_measurement = if rssi < &0 {
+                "dBm".to_owned()
+            } else {
+                "   ".to_owned()
+            };
+            let ssid_rssi = format!{"{:<25}{:>10} {}\n", ssid, rssi, unit_measurement};
             channel_content.push_str(&ssid_rssi);
         }
         view.set_content(channel_content);

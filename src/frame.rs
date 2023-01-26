@@ -68,7 +68,7 @@ impl AirNoise {
     }
 }
 
-fn get_frames(device: Capture<Active>, linktype: Linktype) -> HashMap<String, i32> {
+pub fn get_frames(device: Capture<Active>, linktype: Linktype) -> HashMap<String, i32> {
     let ssid_rssi = match linktype {
         Linktype(127) => parse_radiotap::frames_data_radiotap(device),
         Linktype(163) => parse_avs::frames_data_avs(device),

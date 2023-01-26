@@ -10,13 +10,13 @@ pub enum DeviceMode {
 pub struct AllDevices {
     pub devices: Vec<Device>
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WifiDevices {
     pub devices: Vec<String>,
     pub mode: Option<DeviceMode>,
 }
 
-
+#[derive(Debug, Clone)]
 pub struct WifiDevice {
     pub name: String,
     pub mode: DeviceMode,

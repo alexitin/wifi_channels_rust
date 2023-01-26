@@ -6,7 +6,7 @@ pub fn frames_data_80211(mut device: Capture<Active>) -> HashMap<String, i32> {
 
     let mut ssid_signal: HashMap<String, i32> = HashMap::new();
     let now = Instant::now();
-    let timeout = Duration::from_secs(3);
+    let timeout = Duration::from_secs(2);
 
     'calc: loop {
         while now.elapsed() > timeout {
