@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::sync::mpsc::{self, Receiver};
-use std::{thread, process, isize};
+use std::{thread, isize};
 use std::ffi::CString;
 
-use cursive::{Cursive, CursiveExt};
+use cursive::Cursive;
 use cursive::views::{SelectView, Dialog, TextView, ProgressBar};
 use cursive::view::{Nameable, Resizable};
 use cursive::traits::*;
@@ -41,8 +41,7 @@ impl View for ScanningView {
     }
 }
 
-pub fn get_info(s: &mut Cursive, wifi_devices: &device::WifiDevices) {
-    let wifi_devices = wifi_devices.to_owned();
+pub fn get_info(s: &mut Cursive, wifi_devices: device::WifiDevices) {
 
     let select_device = SelectView::new()
         .with_all_str(wifi_devices.devices)
@@ -72,19 +71,18 @@ pub fn get_info(s: &mut Cursive, wifi_devices: &device::WifiDevices) {
             let scanning_info = ScanningView::new(rx2);
             s.add_layer(Dialog::around(scanning_info).title("Scanning info").fixed_width(50));
 
-        })
-        .with_name("select_device");
+        });
     s.add_layer(Dialog::around(select_device)
         .title("Select wifi device")
+        .with_name("select_device")
     );
 }
 
-pub fn exit_cursive(siv: &mut Cursive, text: &str) -> ! {
-    siv.add_layer(Dialog::text(format!("{}\nPress 'q' to quit", text))
+pub fn exit_cursive(s: &mut Cursive, text: &str) {
+    s.pop_layer();
+    s.add_layer(Dialog::text(format!("{}\nPress 'q' to quit", text))
         .title("Error")
-        .button("Quit", |s| s.quit()));
-    siv.run();
-    process::exit(1)
+    );
 }
 
 fn show_device(wifi_device: &device::WifiDevice) -> String {
@@ -197,6 +195,8 @@ fn show_noise(air_noise: frame::AirNoise) -> Dialog {
                             }
                             cb.send(Box::new(Cursive::noop)).unwrap();
                         }
+                        #[cfg(target_os = "linux")]
+                        SelectorChannel::set_managed_mode(ptr_name);
                     })
                 }).unwrap();
             }

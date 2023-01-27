@@ -1,3 +1,5 @@
+mod error;
+
 #[cfg(target_os = "macos")]
     mod macos_selector;
 #[cfg(target_os = "macos")]

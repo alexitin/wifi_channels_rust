@@ -28,20 +28,6 @@ fn main() {
 }
 
 fn scan(s: &mut Cursive) {
-    let all_devices = match device::AllDevices::new() {
-        Ok(dev) => dev,
-        Err(pcap_err) => {
-            let text = format!("Pcap problem get list devices: {pcap_err}");
-            show::exit_cursive(s, &text)
-        },
-    };
-
-    let wifi_devices = all_devices.get_wifi_devices();
-
-    if wifi_devices.mode.is_none() || wifi_devices.devices.is_empty() {
-        let text = ("Not found device for explore Wifi").to_string();
-        show::exit_cursive(s, &text);
-    }
 
     let device_content = format!("Name: _______     Mode: _______     Link type: _______");
     let device_info = Dialog::around(TextView::new(device_content)
@@ -77,5 +63,22 @@ fn scan(s: &mut Cursive) {
         .child(proc_info)
     );
 
-    show::get_info(s, &wifi_devices);
+    let all_devices = device::AllDevices::new();
+    if all_devices.is_err() {
+        let all_devices_err = all_devices.as_ref().err().unwrap();
+        let text = format!("Pcap problem get list devices: {all_devices_err}");
+        show::exit_cursive(s, &text);
+    } else {
+
+        let all_devices = all_devices.unwrap();
+
+        let wifi_devices = all_devices.get_wifi_devices();
+
+        if wifi_devices.mode.is_none() || wifi_devices.devices.is_empty() {
+            let text = ("Not found device for explore Wifi").to_string();
+            show::exit_cursive(s, &text);
+        } else {
+            show::get_info(s, wifi_devices);
+        }
+    }
 }

@@ -3,7 +3,7 @@ use std::{time::Duration, thread, collections::HashMap, ffi::CString, sync::mpsc
 use cursive::Cursive;
 use pcap::{Linktype, Capture, Active};
 
-use crate::{device, parse_radiotap, parse_avs, parse_ppi, parse_80211, selector::SelectorChannel};
+use crate::{device, parse_radiotap, parse_avs, parse_ppi, parse_80211, selector::SelectorChannel, show};
 
 #[derive(Debug, Clone)]
 pub struct AirNoise {
@@ -17,7 +17,7 @@ pub struct NetSignals {
 }
 
 impl AirNoise {
-    pub fn scan_channels(wifi_device: device::WifiDevice, tx2: mpsc::Sender<isize>, cb_sink: cursive::CbSink) -> AirNoise {
+    pub fn scan_channels(wifi_device: device::WifiDevice, tx2: mpsc::Sender<isize>, cb_sink2: cursive::CbSink) -> AirNoise {
         thread::sleep(Duration::from_secs(1));
 
         let mut net_signals: Vec<NetSignals> = Vec::with_capacity(12);
@@ -28,10 +28,18 @@ impl AirNoise {
 
         match wifi_device.mode {
             device::DeviceMode::Monitor => {
-                (1..13).for_each(|channel| {
-                    let _status_select = SelectorChannel::set_channel(ptr_name, channel);
-                    tx2.send(channel).unwrap();
-                    cb_sink.send(Box::new(Cursive::noop)).unwrap();
+                (1..14).for_each(|channel| {
+                    if let Err(status_select) = SelectorChannel::set_channel(ptr_name, channel) {
+                        let text = format!("Problem of slector channel: {status_select}");
+                        cb_sink2.send(Box::new(move |s| show::exit_cursive(s, &text))).unwrap();
+                        thread::park();
+                    }
+                    if let Err(err) = tx2.send(channel) {
+                        let text = format!("Problem sending info: {err}");
+                        cb_sink2.send(Box::new(move |s| show::exit_cursive(s, &text))).unwrap();
+                        thread::park();
+                    }
+                    cb_sink2.send(Box::new(Cursive::noop)).unwrap();
                     let mut capture_device = device::set_monitor_mode(&wifi_device.name).unwrap();
                     capture_device.set_datalink(wifi_device.linktype).expect("cheking early");
                     let ssid_rssi = get_frames(capture_device, wifi_device.linktype);
@@ -42,9 +50,20 @@ impl AirNoise {
                 SelectorChannel::set_managed_mode(ptr_name);
             },
             device::DeviceMode::Promiscouos => {
-                let channel = SelectorChannel::get_channel(ptr_name);
-                tx2.send(channel).unwrap();
-                cb_sink.send(Box::new(Cursive::noop)).unwrap();
+                let status_channel = SelectorChannel::get_channel(ptr_name);
+                if status_channel.is_err() {
+                    let status_err = status_channel.err().unwrap();
+                    let text = format!("Problem of slector channel: {status_err}");
+                    cb_sink2.send(Box::new(move |s| show::exit_cursive(s, &text))).unwrap();
+                    thread::park();
+                };
+                let channel = status_channel.unwrap();
+                if let Err(err) = tx2.send(channel) {
+                    let text = format!("Problem sending info: {err}");
+                    cb_sink2.send(Box::new(move |s| show::exit_cursive(s, &text))).unwrap();
+                    thread::park();
+                }
+                cb_sink2.send(Box::new(Cursive::noop)).unwrap();
                 let mut capture_device = device::set_promiscouos_mode(&wifi_device.name).unwrap();
                 capture_device.set_datalink(wifi_device.linktype).expect("cheking early");
                 let ssid_rssi = get_frames(capture_device, wifi_device.linktype);
@@ -52,9 +71,20 @@ impl AirNoise {
                 net_signals.push(channel_ssid_rssi);
             },
             device::DeviceMode::Normal => {
-                let channel = SelectorChannel::get_channel(ptr_name);
-                tx2.send(channel).unwrap();
-                cb_sink.send(Box::new(Cursive::noop)).unwrap();
+                let status_channel = SelectorChannel::get_channel(ptr_name);
+                if status_channel.is_err() {
+                    let status_err = status_channel.err().unwrap();
+                    let text = format!("Problem of slector channel: {status_err}");
+                    cb_sink2.send(Box::new(move |s| show::exit_cursive(s, &text))).unwrap();
+                    thread::park();
+                };
+                let channel = status_channel.unwrap();
+                if let Err(err) = tx2.send(channel) {
+                    let text = format!("Problem sending info: {err}");
+                    cb_sink2.send(Box::new(move |s| show::exit_cursive(s, &text))).unwrap();
+                    thread::park();
+                }
+                cb_sink2.send(Box::new(Cursive::noop)).unwrap();
                 let mut capture_device = device::set_normal_mode(&wifi_device.name).unwrap();
                 capture_device.set_datalink(wifi_device.linktype).expect("cheking early");
                 let ssid_rssi = get_frames(capture_device, wifi_device.linktype);
