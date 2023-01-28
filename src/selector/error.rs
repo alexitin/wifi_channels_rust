@@ -1,7 +1,7 @@
-use std::{fmt, isize};
+use std::fmt;
 
 #[cfg(target_os = "macos")]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ErrorSelector {
     NotEnableWifi,
     NotSetChannel,
@@ -11,7 +11,7 @@ pub enum ErrorSelector {
 }
 
 #[cfg(target_os = "linux")]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ErrorSelector {
     NotCreatSocet,
     NotPowerOffDevice,

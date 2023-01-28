@@ -1,4 +1,4 @@
-mod error;
+pub mod error;
 
 #[cfg(target_os = "macos")]
     mod macos_selector;
