@@ -1,9 +1,11 @@
 use std::{time::Duration, thread, collections::HashMap, ffi::CString, sync::mpsc};
 
 use cursive::Cursive;
+
 use pcap::{Linktype, Capture, Active};
 
-use crate::{device, parse_radiotap, parse_avs, parse_ppi, parse_80211, selector::SelectorChannel, selector::error::ErrorSelector, show};
+use crate::{device, parse_radiotap, parse_avs, parse_ppi, parse_80211, show};
+use crate::{selector::SelectorChannel, selector::error::ErrorSelector};
 
 #[derive(Debug, Clone)]
 pub struct AirNoise {
