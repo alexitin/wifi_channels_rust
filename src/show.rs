@@ -194,9 +194,11 @@ fn show_noise(air_noise: frame::AirNoise) -> Dialog {
                                 }
                             }
                             cb.send(Box::new(Cursive::noop)).unwrap();
+                            #[cfg(target_os = "linux")]
+                            if let Err(stattus_managed_mode) = SelectorChannel::set_managed_mode(ptr_name) {
+                                eprintln!("Impossible set managed mode: {}", stattus_managed_mode)
+                            }
                         }
-                        #[cfg(target_os = "linux")]
-                        SelectorChannel::set_managed_mode(ptr_name);
                     })
                 }).unwrap();
             }

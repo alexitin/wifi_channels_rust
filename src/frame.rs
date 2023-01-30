@@ -46,7 +46,14 @@ impl AirNoise {
                         net_signals.push(channel_ssid_rssi);
                     } else {
                         let status_err = status_select.err().unwrap();
+                        #[cfg(target_os = "macos")]
                         if status_err != ErrorSelector::NotSupportChannel {
+                            let text = format!("Problem of slector channel: {status_err}");
+                            cb_sink2.send(Box::new(move |s| show::exit_cursive(s, &text))).unwrap();
+                            thread::park();
+                        }
+                        #[cfg(target_os = "linux")]
+                        if status_err != ErrorSelector::DriverNotSelectFreqChannel {
                             let text = format!("Problem of slector channel: {status_err}");
                             cb_sink2.send(Box::new(move |s| show::exit_cursive(s, &text))).unwrap();
                             thread::park();
@@ -55,7 +62,9 @@ impl AirNoise {
                 });
 
                 #[cfg(target_os = "linux")]
-                SelectorChannel::set_managed_mode(ptr_name);
+                if let Err(stattus_managed_mode) = SelectorChannel::set_managed_mode(ptr_name) {
+                    eprintln!("Impossible set managed mode: {}", stattus_managed_mode)
+                };
             },
             device::DeviceMode::Promiscouos => {
                 let status_channel = SelectorChannel::get_channel(ptr_name);
