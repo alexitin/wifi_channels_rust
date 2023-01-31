@@ -33,7 +33,7 @@ impl AllDevices {
 
     pub fn get_wifi_devices(self) -> WifiDevices {
 
-// Check all devices for monitor mode
+        // Check all devices for monitor mode
         let devices: Vec<String> = self.devices.iter()
             .filter(|dev| {
                 let capture_dev = set_monitor_mode(&dev.name);
@@ -49,7 +49,7 @@ impl AllDevices {
             }
 
         } else {
-// Check device for promiscous mode
+            // Check device for promiscous mode
             let devices: Vec<String> = self.devices.iter()
             .filter(|dev| {
                 let capture_dev = set_promiscouos_mode(&dev.name);
@@ -65,7 +65,7 @@ impl AllDevices {
                     mode: Some(DeviceMode::Promiscouos)
                 }
             } else {
-// Check device for normal mode
+                // Check device for normal mode
                 let devices: Vec<String> = self.devices.iter()
                     .filter(|dev| {
                         let capture_dev = set_normal_mode(&dev.name);
@@ -92,8 +92,7 @@ impl AllDevices {
 }
 
 impl WifiDevice {
-    pub fn get_wifi_device<'a>(name: String, mode: DeviceMode) -> WifiDevice {
-//        let mode = wifi_devices.mode.unwrap();
+    pub fn get_wifi_device(name: String, mode: DeviceMode) -> WifiDevice {
         let mut device_capture = match mode {
             DeviceMode::Monitor => set_monitor_mode(&name),
             DeviceMode::Promiscouos => set_promiscouos_mode(&name),
